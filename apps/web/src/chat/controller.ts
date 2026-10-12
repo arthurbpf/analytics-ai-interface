@@ -2,12 +2,13 @@ import {
   historySchema,
   turnRequestSchema,
   type Analysis,
+  type Identity,
   type PublishedChart,
   type SessionHistory,
   type StreamEvent,
 } from "@analytics/contracts";
 import { ApiFailure, chatApi, type ChatApi } from "./api.ts";
-import { readIndex, remember, writeIndex, type SessionIndex } from "./storage.ts";
+import { emptyIndex, readIndex, remember, writeIndex, type SessionIndex } from "./storage.ts";
 
 type ActiveResponse = {
   sessionId: string | null;
@@ -23,29 +24,39 @@ type ActiveResponse = {
   finished: boolean;
 };
 export interface ChatState {
+  identity: Identity | null;
+  ready: boolean;
   index: SessionIndex;
   selected: string | null;
   histories: Record<string, SessionHistory>;
-  active: ActiveResponse | null;
+  responses: Record<string, ActiveResponse>;
+  creating: boolean;
   loading: boolean;
   error: string | null;
   warning: string | null;
 }
-
 export class ChatController {
+  private readonly api: ChatApi;
   private listeners = new Set<() => void>();
-  private generation = 0;
+  private epoch = 0;
+  private selection = 0;
+  private refreshRevision = 0;
   private revisions = new Map<string, number>();
   private poll: ReturnType<typeof setTimeout> | undefined;
+  private disposed = false;
   private state: ChatState;
-  constructor(private readonly api: ChatApi = chatApi) {
+  constructor(api: ChatApi = chatApi) {
+    this.api = api;
     const { index, warning } = readIndex();
     this.state = {
+      identity: null,
+      ready: false,
       index,
       warning,
       selected: null,
       histories: {},
-      active: null,
+      responses: {},
+      creating: false,
       loading: false,
       error: null,
     };
@@ -64,101 +75,214 @@ export class ChatController {
     }
   }
   private save(index: SessionIndex) {
-    // Merge discoveries from another tab before writing preferences.
-    const saved = readIndex();
-    const merged = {
-      ...index,
-      sessions: saved.index.sessions
-        .reduce((sessions, entry) => {
-          return sessions.some((item) => item.id === entry.id) ? sessions : [...sessions, entry];
-        }, index.sessions)
-        .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
-    };
-    const warning = writeIndex(merged);
-    this.update({ index: merged, ...(warning ? { warning } : {}) });
+    const warning = writeIndex(index);
+    this.update({ index, ...(warning ? { warning } : {}) });
   }
-  private report = (error: unknown) => {
+  private reset(identity: Identity | null) {
+    this.epoch++;
+    this.selection++;
+    clearTimeout(this.poll);
+    for (const response of Object.values(this.state.responses)) {
+      response.controller.abort();
+    }
+    this.revisions.clear();
+    const saved = readIndex();
+    const index =
+      saved.index.identityId === identity?.id
+        ? saved.index
+        : { ...emptyIndex, identityId: identity?.id ?? null, sidebarOpen: saved.index.sidebarOpen };
+    this.update({
+      identity,
+      index,
+      selected: null,
+      histories: {},
+      responses: {},
+      creating: false,
+      loading: false,
+      error: null,
+    });
+  }
+  private report(error: unknown) {
+    if (this.disposed) {
+      return;
+    }
+    if (error instanceof ApiFailure && error.status === 401) {
+      this.reset(null);
+    }
     this.update({ error: error instanceof Error ? error.message : "Request could not complete." });
+  }
+  private run(task: Promise<void>) {
+    void task.then(
+      () => {},
+      (error: unknown) => this.report(error),
+    );
+  }
+  initialize = () => {
+    this.disposed = false;
+    this.run(this.refresh());
   };
   synchronize = () => {
-    const saved = readIndex();
-    this.update({
-      index: { ...saved.index, selected: this.state.selected },
-      warning: saved.warning,
-    });
+    this.run(this.refresh());
+  };
+  private async refresh() {
+    const revision = ++this.refreshRevision;
+    try {
+      const identity = await this.api.identity();
+      if (this.disposed || revision !== this.refreshRevision) {
+        return;
+      }
+      if (identity?.id !== this.state.identity?.id) {
+        this.reset(identity);
+      }
+      this.update({ ready: true });
+      if (!identity) {
+        return;
+      }
+      const epoch = this.epoch;
+      const sessions = await this.api.listSessions();
+      if (this.disposed || revision !== this.refreshRevision || epoch !== this.epoch) {
+        return;
+      }
+      this.update({
+        index: {
+          ...this.state.index,
+          sessions: sessions.map((session) => ({ ...session, label: session.title })),
+        },
+      });
+      this.schedulePoll();
+    } catch (error) {
+      if (!this.disposed && revision === this.refreshRevision) {
+        this.report(error);
+      }
+    }
+  }
+  guest = () => {
+    this.run(this.startGuest());
+  };
+  private async startGuest() {
+    this.update({ error: null });
+    await this.api.guest();
+    await this.refresh();
+  }
+  logout = () => {
+    this.run(this.endIdentity());
+  };
+  private async endIdentity() {
+    await this.api.logout();
+    this.refreshRevision++;
+    this.reset(null);
+    this.save(this.state.index);
+  }
+  dispose = () => {
+    this.disposed = true;
+    this.refreshRevision++;
+    this.reset(null);
   };
   setSidebar = (sidebarOpen: boolean) => {
     this.save({ ...this.state.index, sidebarOpen });
   };
   select = (id: string | null) => {
-    this.generation++;
-    clearTimeout(this.poll);
+    this.selection++;
     this.update({ selected: id, loading: Boolean(id && !this.state.histories[id]), error: null });
-    this.save({ ...this.state.index, selected: id });
-    if (id) {
-      this.load(id, this.generation).then(() => {}, this.report);
+    if (this.state.identity) {
+      this.save({ ...this.state.index, selected: id });
+    }
+    if (id && this.state.identity) {
+      this.run(this.load(id, this.epoch));
     }
   };
   reload = () => {
     this.update({ error: null });
-    if (this.state.selected) {
-      this.load(this.state.selected, this.generation).then(() => {}, this.report);
+    if (this.state.selected && this.state.identity) {
+      this.run(this.load(this.state.selected, this.epoch));
     }
+    this.run(this.refresh());
   };
-  private async load(id: string, generation: number) {
+  private schedulePoll() {
+    clearTimeout(this.poll);
+    if (this.disposed || !this.state.identity) {
+      return;
+    }
+    if (
+      this.state.index.sessions.some(
+        (session) => session.titleStatus === "pending" || session.runningTurn,
+      ) ||
+      Object.values(this.state.histories).some((history) =>
+        history.turns.some((turn) => turn.status === "running"),
+      )
+    ) {
+      this.poll = setTimeout(() => this.run(this.pollSaved()), 2000);
+    }
+  }
+  private async pollSaved() {
+    await this.refresh();
+    const epoch = this.epoch;
+    const ids = new Set(
+      this.state.index.sessions
+        .filter((session) => session.runningTurn)
+        .map((session) => session.id),
+    );
+    for (const [id, history] of Object.entries(this.state.histories)) {
+      if (history.turns.some((turn) => turn.status === "running")) {
+        ids.add(id);
+      }
+    }
+    if (this.state.selected) {
+      ids.add(this.state.selected);
+    }
+    await Promise.all(
+      [...ids].filter((id) => !this.state.responses[id]).map((id) => this.load(id, epoch)),
+    );
+    this.schedulePoll();
+  }
+  private async load(id: string, epoch: number) {
     const revision = (this.revisions.get(id) ?? 0) + 1;
     this.revisions.set(id, revision);
     try {
       const history = await this.api.history(id);
-      if (
-        generation !== this.generation ||
-        id !== this.state.selected ||
-        revision !== this.revisions.get(id)
-      ) {
+      if (this.disposed || epoch !== this.epoch || revision !== this.revisions.get(id)) {
         return;
       }
-      this.update({ histories: { ...this.state.histories, [id]: history }, loading: false });
-      const prompt = history.messages.find((message) => message.content.kind === "user");
-      const label = prompt?.content.kind === "user" ? prompt.content.text.slice(0, 60) : "New chat";
-      this.save(remember(this.state.index, { id, label, updatedAt: history.session.updatedAt }));
-      if (
-        history.turns.some((turn) => turn.status === "running") &&
-        this.state.active?.sessionId !== id
-      ) {
-        clearTimeout(this.poll);
-        this.poll = setTimeout(() => {
-          this.load(id, generation).then(() => {}, this.report);
-        }, 2000);
-      }
+      this.update({
+        histories: { ...this.state.histories, [id]: history },
+        ...(id === this.state.selected ? { loading: false } : {}),
+      });
+      this.update({ index: remember(this.state.index, history.session) });
+      this.schedulePoll();
     } catch (error) {
-      if (
-        generation !== this.generation ||
-        id !== this.state.selected ||
-        revision !== this.revisions.get(id)
-      ) {
+      if (this.disposed || epoch !== this.epoch || revision !== this.revisions.get(id)) {
         return;
       }
       if (error instanceof ApiFailure && error.status === 404) {
-        const index = {
-          ...this.state.index,
-          sessions: this.state.index.sessions.filter((entry) => entry.id !== id),
-        };
-        this.update({ index });
-        const warning = writeIndex(index);
-        if (warning) {
-          this.update({ warning });
-        }
+        const histories = { ...this.state.histories };
+        delete histories[id];
+        this.update({
+          histories,
+          index: {
+            ...this.state.index,
+            sessions: this.state.index.sessions.filter((entry) => entry.id !== id),
+          },
+        });
       }
-      this.update({ loading: false });
-      this.report(error);
+      if (error instanceof ApiFailure && error.status === 401) {
+        this.report(error);
+      } else if (id === this.state.selected) {
+        this.update({ loading: false });
+        this.report(error);
+      }
+      throw error;
     }
   }
   send = (text: string) => {
-    const history = this.state.selected ? this.state.histories[this.state.selected] : undefined;
+    const id = this.state.selected;
+    const history = id ? this.state.histories[id] : undefined;
     if (
-      this.state.active ||
+      !this.state.identity ||
+      this.state.creating ||
       this.state.loading ||
-      history?.turns.some((turn) => turn.status === "running")
+      (id && this.state.responses[id]) ||
+      history?.turns.some((turn) => turn.status === "running") ||
+      this.state.index.sessions.find((entry) => entry.id === id)?.runningTurn
     ) {
       return;
     }
@@ -171,7 +295,7 @@ export class ChatController {
       return;
     }
     const active: ActiveResponse = {
-      sessionId: this.state.selected,
+      sessionId: id,
       label: parsed.data.message.slice(0, 60),
       turnId: null,
       text: parsed.data.message,
@@ -183,11 +307,17 @@ export class ChatController {
       progress: "Starting analysis",
       finished: false,
     };
-    this.update({ active, error: null });
-    this.submit(active, this.generation).then(() => {}, this.report);
+    this.update({
+      responses: { ...this.state.responses, [id ?? active.clientTurnId]: active },
+      creating: !id,
+      error: null,
+    });
+    this.run(this.submit(active, this.epoch, this.selection));
   };
   stop = () => {
-    this.state.active?.controller.abort();
+    if (this.state.selected) {
+      this.state.responses[this.state.selected]?.controller.abort();
+    }
   };
   private event(active: ActiveResponse, event: StreamEvent) {
     if (event.type !== "turn_started" && active.turnId !== event.turnId) {
@@ -196,6 +326,12 @@ export class ChatController {
     switch (event.type) {
       case "turn_started":
         active.turnId = event.turnId;
+        break;
+      case "session_updated":
+        if (event.session.id !== active.sessionId) {
+          throw new Error("Stream contained a different session.");
+        }
+        this.update({ index: remember(this.state.index, event.session) });
         break;
       case "progress":
         active.progress = event.message;
@@ -229,47 +365,78 @@ export class ChatController {
       case "turn_finished":
         active.finished = true;
         active.draft = null;
-        if (event.error) {
+        if (event.error && this.state.selected === active.sessionId) {
           this.update({ error: event.error.message });
         }
         break;
     }
-    this.update({ active: { ...active } });
+    if (active.sessionId) {
+      this.update({ responses: { ...this.state.responses, [active.sessionId]: { ...active } } });
+    }
   }
-  private async submit(active: ActiveResponse, generation: number) {
+  private retainPublished(active: ActiveResponse) {
+    const id = active.sessionId;
+    const turnId = active.turnId;
+    const cached = id ? this.state.histories[id] : undefined;
+    if (!id || !turnId || !cached) {
+      return;
+    }
+    const messages = [...cached.messages];
+    if (!messages.some((message) => message.turnId === turnId && message.content.kind === "user")) {
+      messages.push({
+        id: active.clientTurnId,
+        turnId,
+        content: { kind: "user", text: active.text },
+      });
+    }
+    for (const chart of active.charts) {
+      if (
+        !messages.some(
+          (message) => message.content.kind === "chart" && message.content.chart.id === chart.id,
+        )
+      ) {
+        messages.push({ id: chart.id, turnId, content: { kind: "chart", chart } });
+      }
+    }
+    if (
+      active.analysis &&
+      !messages.some((message) => message.turnId === turnId && message.content.kind === "analysis")
+    ) {
+      messages.push({
+        id: crypto.randomUUID(),
+        turnId,
+        content: { kind: "analysis", analysis: active.analysis },
+      });
+    }
+    this.update({ histories: { ...this.state.histories, [id]: { ...cached, messages } } });
+  }
+  private async submit(active: ActiveResponse, epoch: number, selection: number) {
     let failure: string | null = null;
     try {
       if (!active.sessionId) {
         const session = await this.api.createSession();
+        if (this.disposed || epoch !== this.epoch) {
+          return;
+        }
         active.sessionId = session.id;
+        const responses = { ...this.state.responses };
+        delete responses[active.clientTurnId];
+        responses[session.id] = active;
         this.update({
+          responses,
+          creating: false,
           histories: {
             ...this.state.histories,
             [session.id]: historySchema.parse({ session, turns: [], messages: [] }),
           },
+          index: remember(this.state.index, session),
         });
-        this.save(
-          remember(this.state.index, {
-            id: session.id,
-            label: active.label,
-            updatedAt: session.updatedAt,
-          }),
-        );
-        if (this.state.selected === null && generation === this.generation) {
+        if (this.state.selected === null && selection === this.selection) {
           this.update({ selected: session.id });
           this.save({ ...this.state.index, selected: session.id });
         }
       }
       active.controller.signal.throwIfAborted();
-      this.save(
-        remember(this.state.index, {
-          id: active.sessionId,
-          label:
-            this.state.index.sessions.find((item) => item.id === active.sessionId)?.label ??
-            active.label,
-          updatedAt: new Date().toISOString(),
-        }),
-      );
       for await (const event of this.api.turn(
         {
           params: { id: active.sessionId },
@@ -277,12 +444,22 @@ export class ChatController {
         },
         active.controller.signal,
       )) {
+        if (this.disposed || epoch !== this.epoch) {
+          return;
+        }
         this.event(active, event);
       }
       if (!active.finished) {
         throw new Error("Connection ended before completion. Saved history has been reloaded.");
       }
     } catch (error) {
+      if (this.disposed || epoch !== this.epoch) {
+        return;
+      }
+      if (error instanceof ApiFailure && error.status === 401) {
+        this.report(error);
+        return;
+      }
       failure = active.controller.signal.aborted
         ? "Analysis stopped. Saved artifacts are retained."
         : error instanceof Error
@@ -291,63 +468,27 @@ export class ChatController {
     } finally {
       active.controller.abort();
       active.draft = null;
-      if (active.sessionId) {
-        this.revisions.set(active.sessionId, (this.revisions.get(active.sessionId) ?? 0) + 1);
-        try {
-          const history = await this.api.history(active.sessionId);
-          this.update({ histories: { ...this.state.histories, [active.sessionId]: history } });
-        } catch (error) {
-          failure ??= error instanceof Error ? error.message : "Could not reload saved history.";
-          const cached = this.state.histories[active.sessionId];
-          const turnId = active.turnId;
-          if (cached && turnId) {
-            const messages = [...cached.messages];
-            if (
-              !messages.some(
-                (message) => message.turnId === turnId && message.content.kind === "user",
-              )
-            ) {
-              messages.push({
-                id: active.clientTurnId,
-                turnId,
-                content: { kind: "user", text: active.text },
-              });
+      if (!this.disposed && epoch === this.epoch) {
+        if (active.sessionId) {
+          try {
+            await this.load(active.sessionId, epoch);
+          } catch (error) {
+            failure ??= error instanceof Error ? error.message : "Could not reload saved history.";
+            if (epoch === this.epoch) {
+              this.retainPublished(active);
             }
-            for (const chart of active.charts) {
-              if (
-                !messages.some(
-                  (message) =>
-                    message.content.kind === "chart" && message.content.chart.id === chart.id,
-                )
-              ) {
-                messages.push({ id: chart.id, turnId, content: { kind: "chart", chart } });
-              }
-            }
-            if (
-              active.analysis &&
-              !messages.some(
-                (message) => message.turnId === turnId && message.content.kind === "analysis",
-              )
-            ) {
-              messages.push({
-                id: crypto.randomUUID(),
-                turnId,
-                content: { kind: "analysis", analysis: active.analysis },
-              });
-            }
-            this.update({
-              histories: { ...this.state.histories, [active.sessionId]: { ...cached, messages } },
-            });
           }
         }
-      }
-      this.update({ active: null, ...(failure ? { error: failure } : {}) });
-      const selected = this.state.selected;
-      if (
-        selected &&
-        this.state.histories[selected]?.turns.some((turn) => turn.status === "running")
-      ) {
-        this.load(selected, this.generation).then(() => {}, this.report);
+        if (epoch === this.epoch && !this.disposed) {
+          const responses = { ...this.state.responses };
+          delete responses[active.sessionId ?? active.clientTurnId];
+          this.update({
+            responses,
+            creating: false,
+            ...(failure && this.state.selected === active.sessionId ? { error: failure } : {}),
+          });
+          await this.refresh();
+        }
       }
     }
   }

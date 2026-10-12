@@ -6,7 +6,15 @@ export const resultRef = "44444444-4444-4444-8444-444444444444";
 export const timestamp = "2026-10-12T12:00:00.000Z";
 export function history(): SessionHistory {
   return {
-    session: { id: sessionId, createdAt: timestamp, updatedAt: timestamp },
+    session: {
+      id: sessionId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      title: "Revenue",
+      titleStatus: "idle",
+      titleRevision: 0,
+      runningTurn: false,
+    },
     turns: [],
     messages: [],
   };

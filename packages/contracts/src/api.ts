@@ -5,12 +5,18 @@ import {
   historySchema,
   idSchema,
   sessionSchema,
+  identitySchema,
   turnRequestSchema,
 } from "./sessions.ts";
 import { queryResultSchema } from "./results.ts";
 
 const c = initContract();
-const errors = { 400: apiErrorSchema, 500: apiErrorSchema };
+const errors = {
+  400: apiErrorSchema,
+  401: apiErrorSchema,
+  403: apiErrorSchema,
+  500: apiErrorSchema,
+};
 const sessionParams = z.object({ id: idSchema });
 
 export const jsonContract = c.router({
@@ -18,6 +24,28 @@ export const jsonContract = c.router({
     method: "GET",
     path: "/api/health",
     responses: { 200: z.object({ status: z.literal("ok") }), 500: apiErrorSchema },
+  },
+  identity: {
+    method: "GET",
+    path: "/api/auth/me",
+    responses: { 200: z.object({ identity: identitySchema.nullable() }), ...errors },
+  },
+  guest: {
+    method: "POST",
+    path: "/api/auth/guest",
+    body: c.noBody(),
+    responses: { 201: identitySchema, ...errors },
+  },
+  logout: {
+    method: "POST",
+    path: "/api/auth/logout",
+    body: c.noBody(),
+    responses: { 200: z.object({ ok: z.literal(true) }), ...errors },
+  },
+  listSessions: {
+    method: "GET",
+    path: "/api/sessions",
+    responses: { 200: z.array(sessionSchema), ...errors },
   },
   createSession: {
     method: "POST",

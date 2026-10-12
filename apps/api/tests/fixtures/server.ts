@@ -62,11 +62,25 @@ const model: ModelClient = {
         chartIds: [randomUUID()],
       });
     }
+    if (prompt.includes("Markdown")) {
+      const raw: unknown = JSON.parse(tool.arguments);
+      response = call("present_analysis", {
+        ...analysisSchema.parse(raw),
+        narrative:
+          "# Findings\n\n**Desktop** leads.\n\n- Mobile has *3* purchases.\n\n> Sample data\n\n[Source](https://example.com)\n\n| Device | Purchases |\n| --- | --- |\n| " +
+          "desktop".repeat(30) +
+          " | 12 |\n\n```sql\nSELECT " +
+          "device, ".repeat(60) +
+          "purchases\n```\n\n<script>alert(1)</script>\n\n![tracking](https://example.com/image)\n\n[unsafe](javascript:alert%281%29)",
+        caveats: ["**Obfuscated** sample"],
+      });
+    }
     const presentation = response.message.toolCalls[0];
     if (!presentation) {
       throw new Error("Missing presentation fixture");
     }
-    for (let length = 12; length < presentation.arguments.length; length += 12) {
+    const chunkSize = prompt.includes("Markdown") ? 120 : 12;
+    for (let length = chunkSize; length < presentation.arguments.length; length += chunkSize) {
       await update?.({
         index: 0,
         name: presentation.name,
@@ -86,6 +100,13 @@ const model: ModelClient = {
 };
 const backend = createApp({
   store,
+  origin: "http://127.0.0.1:5174",
+  titles: {
+    complete: async (prompts) => ({
+      title: prompts[0]?.slice(0, 60) ?? "Analysis",
+      usage: { inputTokens: 4, outputTokens: 4, cost: 0.001 },
+    }),
+  },
   model,
   warehouse: fixtureWarehouse(),
   queryBytes: 100n,

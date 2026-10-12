@@ -42,3 +42,33 @@ The production frontend is still a placeholder.
 
 All six live checks remain unverified. Budget defaults are not calibrated against
 real BigQuery scans. Deployment and backup checks have not run.
+
+## Identity, ownership, and titles
+
+Automated tests script Google/OpenRouter and use real PostgreSQL for persistence.
+The ownership suite checks missing credentials (401) and cross-identity access (404)
+for listing, history, results, and submission. Two Google accounts with the same
+email still remain separate because their subject IDs differ. Tests cover guest cookie
+persistence, hashing/expiration/revocation, same-origin mutations, cookie attributes,
+logout cancellation, state mismatch, expired/replayed callbacks, failed token
+verification, guest-binding mismatch, and transfer into new/existing Google accounts.
+The adapter unit tests verify PKCE S256, state/nonce, audience verification, missing
+ID tokens, token verification errors, and nonce mismatch.
+
+A migration test creates a disposable test database, inserts chat records under the
+original schema, and applies the new migration. IDs and messages survive; the records
+remain unowned and cannot be accessed by guests.
+
+Title tests check accepted prompt counts 1 and 3, duplicate rejection, failed and
+interrupted analyses, bounded model input/output, invalid/empty/truncated output,
+timeouts, fallback/previous title preservation, separate usage, out-of-order writes,
+and startup recovery without replay. HTTP tests verify analytics can finish while its
+title remains pending and duplicates do not create extra title calls.
+
+Live Haiku title verification is recorded in [live-title-results.json](live-title-results.json):
+English and Portuguese first-prompt titles and a third-prompt revision were valid,
+short, and reflected the analysis intent. The three requests reported a total cost
+of $0.000414. Live Google login remains unverified because Google OAuth client
+credentials are not configured in the local environment. After configuring them,
+verify login, guest transfer, account reload, logout, and login from a second browser
+using the setup in the root README.

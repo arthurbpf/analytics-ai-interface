@@ -24,6 +24,37 @@ export const client = initClient(jsonContract, {
   throwOnUnknownStatus: true,
 });
 export const chatApi = {
+  async identity(this: void) {
+    const response = await client.identity({});
+    if (response.status !== 200) {
+      const error = apiErrorSchema.parse(response.body);
+      throw new ApiFailure(response.status, error.code, error.message);
+    }
+    return response.body.identity;
+  },
+  async guest(this: void) {
+    const response = await client.guest({});
+    if (response.status !== 201) {
+      const error = apiErrorSchema.parse(response.body);
+      throw new ApiFailure(response.status, error.code, error.message);
+    }
+    return response.body;
+  },
+  async logout(this: void) {
+    const response = await client.logout({});
+    if (response.status !== 200) {
+      const error = apiErrorSchema.parse(response.body);
+      throw new ApiFailure(response.status, error.code, error.message);
+    }
+  },
+  async listSessions(this: void) {
+    const response = await client.listSessions({});
+    if (response.status !== 200) {
+      const error = apiErrorSchema.parse(response.body);
+      throw new ApiFailure(response.status, error.code, error.message);
+    }
+    return response.body;
+  },
   async createSession(this: void) {
     const response = await client.createSession({});
     if (response.status !== 201) {

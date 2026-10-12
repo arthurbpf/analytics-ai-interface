@@ -3,7 +3,7 @@
 React + Vite + TanStack Router frontend and Node.js + Express backend, managed
 with pnpm workspaces and Turborepo. The backend implements durable analytics
 conversations and streamed chart/analysis artifacts. The frontend provides a
-chat page with shadcn/ui Lyra components, saved sessions, and charts. JSON API
+chat page with shadcn/ui Lyra components, private sessions, Markdown, and charts. JSON API
 requests use ts-rest contracts; narrative drafts and charts stream over SSE.
 
 ## Development
@@ -43,6 +43,55 @@ Both apps use TypeScript 7.0.2 through the shared pnpm catalog and override.
 The frontend runs at http://localhost:5173. The backend listens at
 http://127.0.0.1:3001/api/health; Vite proxies `/api` requests to it during development.
 
+## Google login and private conversations
+
+Set `APP_ORIGIN` to the browser's exact origin (local default:
+`http://localhost:5173`). In the [Google Cloud console](https://console.cloud.google.com/apis/credentials),
+configure an OAuth consent screen and a **Web application** OAuth client. For open
+signup, allow external users and publish the consent screen; a consent screen in
+testing mode only permits configured test users. Register the exact authorized
+redirect URI `http://localhost:5173/api/auth/google/callback` for local development,
+or `<APP_ORIGIN>/api/auth/google/callback` for the deployed application. Set
+`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the server environment. Keep
+those credentials separate from BigQuery credentials. Leaving both blank enables
+guest-only local use.
+
+The login routes are `GET /api/auth/google` and `GET /api/auth/google/callback`.
+Login uses an authorization code, PKCE S256, state, nonce, and server-verified ID
+tokens; Google's stable subject identifies the account. See the
+[official Google OAuth library](https://github.com/googleapis/google-auth-library-nodejs)
+and [Google's OpenID Connect setup guide](https://developers.google.com/identity/openid-connect/openid-connect).
+`GET /api/auth/me` returns the current identity, and `POST /api/auth/logout`
+revokes its credential. Guests use the full analytics pipeline and existing budgets.
+
+Random authentication cookies are HttpOnly, SameSite=Lax, and persist for a fixed
+30 days; PostgreSQL stores only their hashes. In production, set
+`NODE_ENV=production` and an explicit HTTPS `APP_ORIGIN` to enable Secure cookies.
+Logout clears the cookie, stops that browser's streams, and clears cached chats.
+Signing in transfers the current guest's conversations into the Google account
+transactionally and revokes the guest's credentials. Failed login preserves guest
+access. Guest chats cannot be recovered after their cookie expires or is lost.
+
+Every chat endpoint requires an identity and checks ownership. Missing credentials
+receive 401, and another person's chat or result receives 404. Sidebar discovery
+comes from PostgreSQL. localStorage stores only identity-scoped selection and sidebar
+preferences; previous unscoped browser indexes are discarded. Existing chats migrated
+without an owner retain their contents but are inaccessible through the chat API.
+
+Titles use `OPENROUTER_TITLE_MODEL` (default:
+[`anthropic/claude-haiku-4.5`](https://openrouter.ai/anthropic/claude-haiku-4.5)) with
+the existing OpenRouter key. Requests run independently after persisted prompts 1 and
+3, using at most 100 output tokens and 10 seconds. The first prompt supplies an
+immediate excerpt; failures retain that excerpt or the previous title. Attempt status,
+revision, and title model usage are recorded separately from analytics. Duplicate
+submissions and restarts do not retry title requests. Pending titles are refreshed
+every two seconds, including after the analysis stream closes.
+
+Assistant narratives, provisional drafts, and caveats share a Markdown renderer with
+GFM tables and fenced code. Raw HTML and embedded images are disabled, safe URL
+handling remains enabled, and wide tables/code scroll horizontally. User prompts
+remain literal text.
+
 ## Checks
 
 ```sh
@@ -80,14 +129,18 @@ The dependency and devenv lockfiles are included. CI installs should use
 - `apps/api/src/http`: SSE cancellation and backpressure.
 - `packages/contracts`: shared Zod schemas, TypeScript types, and stream reader.
 
-Create a session with `POST /api/sessions`. Submit
+Authenticate with Google or start a guest identity with `POST /api/auth/guest`.
+State-changing requests must include an `Origin` header matching `APP_ORIGIN`,
+and chat requests must carry the authentication cookie. List your chats with
+`GET /api/sessions` and create a session with `POST /api/sessions`. Submit
 `{ "clientTurnId": "<uuid>", "message": "<question>" }` to
 `POST /api/sessions/:id/turns` and consume SSE with the shared `readEvents` helper.
 `chart_ready` contains chart mappings and saved rows; `analysis_ready` contains
 structured final narrative. Retrieve history with `GET /api/sessions/:id` and
 results with `GET /api/sessions/:id/results/:ref`.
 
-Only one turn may run per session. Duplicate client turn IDs return 409.
+Multiple sessions may run simultaneously; each session permits only one running
+turn. Duplicate client turn IDs return 409.
 Disconnects cancel work while preserving saved artifacts; startup marks abandoned
 turns interrupted. Retention/deletion policy is not implemented yet.
 
@@ -107,6 +160,6 @@ these suites make no paid API calls. Outside devenv, install Chromium with
 See [docs/frontend-test-cases.md](docs/frontend-test-cases.md) for frontend coverage
 and [docs/backend-test-cases.md](docs/backend-test-cases.md) for acceptance cases
 and verification status. Live analytics accuracy and cost calibration remain
-unverified. Railway is the hosting target; deployment, backups, authentication,
+unverified. Railway is the hosting target; deployment, backups,
 and vector retrieval remain unimplemented. The current API
 binds to loopback and does not serve the built frontend.

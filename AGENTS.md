@@ -174,8 +174,15 @@ whose name ends in `_test`.
   scripted external services. See `docs/backend-test-cases.md` for verified
   coverage and pending live checks. Browser tests verify transport/persistence,
   not production chat/chart rendering.
-- Remaining: frontend chat/charts, live analytics validation, budget calibration,
-  authentication, Railway deployment/static serving, backups, retention policy.
+- Implemented: Google authorization-code login with PKCE/state/nonce, persistent
+  guest/account credentials, HTTP ownership checks, and transactional guest chat
+  transfer. Legacy unowned chats remain inaccessible. The frontend supports concurrent
+  chat streams, identity-scoped preferences, persisted Haiku titles after prompts 1/3,
+  and safe Markdown narratives/drafts/caveats. Title usage is separate from analytics.
+  Live Haiku title samples are recorded in `docs/live-title-results.json`; live Google
+  login still needs configured OAuth client credentials.
+- Remaining: live analytics validation, budget calibration,
+  Railway deployment/static serving, backups, retention policy.
   No embeddings or vector indexes are implemented.
 - Express 5 handles rejected async handlers; the obsolete
   `oxc/no-async-endpoint-handlers` lint rule is disabled. API `skipLibCheck` skips

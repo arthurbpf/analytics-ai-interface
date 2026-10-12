@@ -1,14 +1,15 @@
 import { expect, it, vi } from "vitest";
 import { emptyIndex, readIndex, remember, storageKey, writeIndex } from "./storage.ts";
-import { sessionId, timestamp } from "./test-fixtures.ts";
-it("roundtrips the versioned index without transcripts or chart data", () => {
+import { history, sessionId } from "./test-fixtures.ts";
+it("stores only identity-scoped selection and sidebar preferences", () => {
   const index = remember(
-    { ...emptyIndex, selected: sessionId },
-    { id: sessionId, label: "Revenue", updatedAt: timestamp },
+    { ...emptyIndex, identityId: sessionId, selected: sessionId },
+    history().session,
   );
   expect(writeIndex(index)).toBeNull();
-  expect(readIndex().index).toEqual(index);
-  expect(localStorage.getItem(storageKey)).not.toContain("rows");
+  expect(readIndex().index).toEqual({ ...index, sessions: [] });
+  expect(localStorage.getItem(storageKey)).not.toContain("Revenue");
+  expect(localStorage.getItem(storageKey)).not.toContain("sessions");
 });
 it("resets invalid versions and corrupt JSON", () => {
   localStorage.setItem(storageKey, '{"version":9}');
@@ -17,7 +18,7 @@ it("resets invalid versions and corrupt JSON", () => {
   localStorage.setItem(storageKey, "{");
   expect(readIndex().index).toEqual(emptyIndex);
 });
-it("reports unavailable storage without preventing a conversation", () => {
+it("reports unavailable storage without blocking conversations", () => {
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
     throw new Error("Quota");
   });

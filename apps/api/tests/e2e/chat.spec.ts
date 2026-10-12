@@ -2,10 +2,15 @@ import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import { historySchema } from "@analytics/contracts";
 
+test.beforeEach(async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Continue as guest" }).click();
+  await expect(page.getByLabel("Ask an analytics question")).toBeVisible();
+});
+
 const narrative = "Desktop has 12 purchase events; mobile has 3.";
 test("chat streams charts and draft text, replaces the draft, reloads, and follows up", async ({
   page,
-  request,
 }) => {
   let turnRequests = 0;
   let resultRequests = 0;
@@ -28,7 +33,7 @@ test("chat streams charts and draft text, replaces the draft, reloads, and follo
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
   const sessionId = new URL(page.url()).searchParams.get("session");
   expect(sessionId).toBeTruthy();
-  const raw: unknown = await (await request.get(`/api/sessions/${sessionId}`)).json();
+  const raw: unknown = await (await page.request.get(`/api/sessions/${sessionId}`)).json();
   expect(historySchema.parse(raw).turns[0]?.status).toBe("completed");
   await page.reload();
   await expect(page.getByText(narrative, { exact: true })).toBeVisible();
@@ -43,7 +48,7 @@ test("chat streams charts and draft text, replaces the draft, reloads, and follo
   await page.getByRole("button", { name: "Compare purchases by device", exact: true }).click();
   await expect(page.getByTestId("chart-bar")).toHaveCount(2);
 });
-test("session switching keeps a response alive, blocks another send, and Stop retains charts", async ({
+test("session switching permits a second response and Stop retains charts independently", async ({
   page,
 }) => {
   let turns = 0;
@@ -59,7 +64,9 @@ test("session switching keeps a response alive, blocks another send, and Stop re
   const sessionUrl = page.url();
   await page.getByRole("button", { name: "New chat", exact: true }).click();
   await page.getByLabel("Ask an analytics question").fill("Another question");
-  await expect(page.getByRole("button", { name: "Send question" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Send question" })).toBeEnabled();
+  await page.getByRole("button", { name: "Send question" }).click();
+  await expect(page.getByText(narrative, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Hold this analysis", exact: true }).click();
   await expect(page.getByTestId("narrative-draft")).toBeVisible();
   await page.getByRole("button", { name: "Stop", exact: true }).click();
@@ -69,7 +76,7 @@ test("session switching keeps a response alive, blocks another send, and Stop re
   await page.reload();
   await expect(page.getByTestId("chart-bar")).toBeVisible();
   expect(page.url()).toBe(sessionUrl);
-  expect(turns).toBe(1);
+  expect(turns).toBe(2);
 });
 test("a rejected draft is removed and a repaired presentation completes", async ({ page }) => {
   await page.goto("/");
@@ -150,4 +157,45 @@ test("invalid URLs, missing sessions, and corrupt storage remain usable", async 
   await expect(page.getByText("Session not found")).toBeVisible();
   await page.getByRole("button", { name: "New chat", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Explore your ecommerce data." })).toBeVisible();
+});
+
+test("logout removes private history and a new guest cannot open the old chat", async ({
+  page,
+}) => {
+  await page.getByLabel("Ask an analytics question").fill("My private analysis");
+  await page.getByRole("button", { name: "Send question" }).click();
+  await expect(page.getByText(narrative, { exact: true })).toBeVisible();
+  const url = page.url();
+  await page.getByRole("button", { name: "Log out", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Continue as guest" })).toBeVisible();
+  await expect(page.getByText(narrative, { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Continue as guest" }).click();
+  await expect(page.getByRole("heading", { name: "Explore your ecommerce data." })).toBeVisible();
+  await page.goto(url);
+  await expect(page.getByText("Session not found")).toBeVisible();
+  await expect(page.getByText(narrative, { exact: true })).toHaveCount(0);
+});
+test("Markdown tables and code scroll on mobile while images and HTML stay disabled", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByLabel("Ask an analytics question").fill("Markdown findings");
+  await page.getByRole("button", { name: "Send question" }).click();
+  await expect(page.getByRole("heading", { name: "Findings", exact: true })).toBeVisible();
+  await expect(page.getByTestId("narrative-draft")).toHaveCount(0);
+  expect(await page.locator(".markdown img, .markdown script").count()).toBe(0);
+  expect(await page.getByText("unsafe", { exact: true }).getAttribute("href")).toBe("");
+  expect(
+    await page
+      .locator(".markdown-table")
+      .evaluate((element) => element.scrollWidth > element.clientWidth),
+  ).toBe(true);
+  expect(
+    await page
+      .locator(".markdown pre")
+      .evaluate((element) => element.scrollWidth > element.clientWidth),
+  ).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 });

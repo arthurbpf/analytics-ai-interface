@@ -48,6 +48,10 @@ export function memoryStore(): {
   const history: AgentHistory = {
     session: {
       id: sessionId,
+      title: "New chat",
+      titleStatus: "idle",
+      titleRevision: 0,
+      runningTurn: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },

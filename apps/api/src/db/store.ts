@@ -1,5 +1,5 @@
 import { displayHistory, type AgentHistory, type StoredMessageContent } from "./history.ts";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, sql, getTableColumns } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
@@ -29,8 +29,13 @@ export class Store {
     this.pool = new Pool({ connectionString: url, max: 5 });
     this.db = drizzle({ client: this.pool, schema });
   }
-  async createSession() {
-    const [session] = await this.db.insert(schema.sessions).values({}).returning();
+  async createSession(ownerId?: string, tokenHash?: string) {
+    const [session] = await this.db.transaction(async (tx) => {
+      if (tokenHash) {
+        await this.checkCredential(tx, tokenHash);
+      }
+      return tx.insert(schema.sessions).values({ ownerId }).returning();
+    });
     if (!session) {
       throw new Error("Session insert failed");
     }
@@ -39,6 +44,51 @@ export class Store {
       createdAt: session.createdAt.toISOString(),
       updatedAt: session.updatedAt.toISOString(),
     });
+  }
+  private async checkCredential(
+    tx: Parameters<Parameters<typeof this.db.transaction>[0]>[0],
+    tokenHash: string,
+  ) {
+    const [credential] = await tx
+      .select()
+      .from(schema.authSessions)
+      .where(
+        and(
+          eq(schema.authSessions.tokenHash, tokenHash),
+          isNull(schema.authSessions.revokedAt),
+          gt(schema.authSessions.expiresAt, new Date()),
+        ),
+      )
+      .for("share");
+    if (!credential) {
+      throw new RequestError(401, "unauthenticated", "Please sign in or continue as guest");
+    }
+  }
+  async assertOwner(sessionId: string, ownerId: string) {
+    const [session] = await this.db
+      .select({ id: schema.sessions.id })
+      .from(schema.sessions)
+      .where(and(eq(schema.sessions.id, sessionId), eq(schema.sessions.ownerId, ownerId)));
+    if (!session) {
+      throw new RequestError(404, "not_found", "Session not found");
+    }
+  }
+  async listSessions(ownerId: string) {
+    const rows = await this.db
+      .select({
+        ...getTableColumns(schema.sessions),
+        runningTurn: sql<boolean>`exists (select 1 from turns where turns."sessionId" = sessions.id and turns.status = 'running')`,
+      })
+      .from(schema.sessions)
+      .where(eq(schema.sessions.ownerId, ownerId))
+      .orderBy(desc(schema.sessions.updatedAt), desc(schema.sessions.id));
+    return rows.map((row) =>
+      sessionSchema.parse({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+      }),
+    );
   }
   async history(sessionId: string) {
     return historySchema.parse(displayHistory(await this.agentHistory(sessionId)));
@@ -64,6 +114,7 @@ export class Store {
     return {
       session: sessionSchema.parse({
         ...session,
+        runningTurn: turnRows.some((turn) => turn.status === "running"),
         createdAt: session.createdAt.toISOString(),
         updatedAt: session.updatedAt.toISOString(),
       }),
@@ -81,14 +132,23 @@ export class Store {
       })),
     };
   }
-  async startTurn(sessionId: string, clientTurnId: string, message: string) {
+  async startTurn(
+    sessionId: string,
+    clientTurnId: string,
+    message: string,
+    ownerId?: string,
+    tokenHash?: string,
+  ) {
     return this.db.transaction(async (tx) => {
+      if (tokenHash) {
+        await this.checkCredential(tx, tokenHash);
+      }
       const [session] = await tx
         .select()
         .from(schema.sessions)
         .where(eq(schema.sessions.id, sessionId))
         .for("update");
-      if (!session) {
+      if (!session || (ownerId && session.ownerId !== ownerId)) {
         throw new RequestError(404, "not_found", "Session not found");
       }
       const [existing] = await tx
@@ -120,15 +180,40 @@ export class Store {
         turnId: turn.id,
         content: { kind: "model", message: { role: "user", content: message } },
       });
+      const count = session.userMessageCount + 1;
+      const revision = count === 1 || count === 3 ? count : null;
+      let titleAttempt: { revision: number; prompts: string[] } | null = null;
+      if (revision) {
+        const rows = await tx
+          .select()
+          .from(schema.messages)
+          .where(eq(schema.messages.sessionId, sessionId))
+          .orderBy(asc(schema.messages.sequence));
+        const prompts = rows.flatMap(({ content }) =>
+          content.kind === "model" && content.message.role === "user"
+            ? [content.message.content]
+            : [],
+        );
+        titleAttempt = { revision, prompts: prompts.slice(0, 3) };
+        await tx.insert(schema.titleAttempts).values({ sessionId, revision, status: "pending" });
+      }
       await tx
         .update(schema.sessions)
-        .set({ updatedAt: new Date() })
+        .set({
+          updatedAt: new Date(),
+          userMessageCount: count,
+          ...(revision ? { titleStatus: "pending" as const, titleRevision: revision } : {}),
+          ...(count === 1 ? { title: message.replace(/\s+/g, " ").slice(0, 60) } : {}),
+        })
         .where(eq(schema.sessions.id, sessionId));
-      return turnSchema.parse({
-        ...turn,
-        createdAt: turn.createdAt.toISOString(),
-        finishedAt: null,
-      });
+      return {
+        ...turnSchema.parse({
+          ...turn,
+          createdAt: turn.createdAt.toISOString(),
+          finishedAt: null,
+        }),
+        titleAttempt,
+      };
     });
   }
   async append(sessionId: string, turnId: string, content: StoredMessageContent) {
@@ -190,7 +275,51 @@ export class Store {
         .where(eq(schema.sessions.id, sessionId));
     });
   }
+  async finishTitle(
+    sessionId: string,
+    revision: number,
+    title: string | null,
+    usage: typeof schema.titleAttempts.$inferInsert.usage,
+  ) {
+    return this.db.transaction(async (tx) => {
+      const status = title ? "succeeded" : "failed";
+      const attempts = await tx
+        .update(schema.titleAttempts)
+        .set({ status, usage })
+        .where(
+          and(
+            eq(schema.titleAttempts.sessionId, sessionId),
+            eq(schema.titleAttempts.revision, revision),
+            eq(schema.titleAttempts.status, "pending"),
+          ),
+        )
+        .returning();
+      if (!attempts.length) {
+        return null;
+      }
+      const [row] = await tx
+        .update(schema.sessions)
+        .set({ titleStatus: status, ...(title ? { title } : {}) })
+        .where(and(eq(schema.sessions.id, sessionId), eq(schema.sessions.titleRevision, revision)))
+        .returning();
+      return row
+        ? sessionSchema.parse({
+            ...row,
+            createdAt: row.createdAt.toISOString(),
+            updatedAt: row.updatedAt.toISOString(),
+          })
+        : null;
+    });
+  }
   async recover() {
+    await this.db
+      .update(schema.titleAttempts)
+      .set({ status: "failed" })
+      .where(eq(schema.titleAttempts.status, "pending"));
+    await this.db
+      .update(schema.sessions)
+      .set({ titleStatus: "failed" })
+      .where(eq(schema.sessions.titleStatus, "pending"));
     await this.db
       .update(schema.turns)
       .set({

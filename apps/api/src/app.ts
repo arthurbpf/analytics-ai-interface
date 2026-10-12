@@ -1,27 +1,160 @@
-import express, { type ErrorRequestHandler } from "express";
+import express, { type Request, type ErrorRequestHandler } from "express";
 import { z } from "zod";
 import { createExpressEndpoints, initServer } from "@ts-rest/express";
 import { jsonContract, turnContract } from "@analytics/contracts";
+import { AuthStore, authLifetimeMs, type Authenticated, type GoogleLogin } from "./auth.ts";
+import { generateTitle, type TitleClient } from "./llm/titles.ts";
 import { limits } from "./config.ts";
 import { RequestError, type Store } from "./db/store.ts";
 import { runAgent, type AgentDependencies } from "./agent/loop.ts";
 import { openStream } from "./http/stream.ts";
 
-export function createApp(deps: AgentDependencies & { store: Store }) {
+const cookie = (request: Request, name: string) => {
+  const part = request.headers.cookie
+    ?.split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${name}=`));
+  return part?.slice(name.length + 1);
+};
+
+export function createApp(
+  deps: AgentDependencies & {
+    store: Store;
+    origin?: string;
+    secureCookies?: boolean;
+    google?: GoogleLogin | undefined;
+    titles?: TitleClient;
+  },
+) {
   const app = express();
-  const active = new Map<AbortController, Promise<void>>();
+  const active = new Map<AbortController, { task: Promise<void>; tokenHash: string }>();
+  const titleTasks = new Set<Promise<void>>();
+  const auth = new AuthStore(deps.store);
+  const identities = new WeakMap<Request, Authenticated | null>();
+  const origin = deps.origin ?? "http://localhost:5173";
+  const cookieOptions = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: deps.secureCookies ?? false,
+    path: "/",
+    maxAge: authLifetimeMs,
+  };
+  const requireIdentity = (request: Request) => {
+    const current = identities.get(request);
+    if (!current) {
+      throw new RequestError(401, "unauthenticated", "Please sign in or continue as guest");
+    }
+    return current;
+  };
+  const stopStreams = (tokenHash: string) => {
+    for (const [controller, work] of active) {
+      if (work.tokenHash === tokenHash) {
+        controller.abort(new Error("Authentication ended"));
+      }
+    }
+  };
+  app.use("/api", async (request, response, next) => {
+    response.setHeader("Cache-Control", "no-store");
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && request.headers.origin !== origin) {
+      throw new RequestError(
+        403,
+        "invalid_origin",
+        "Request must come from the application origin",
+      );
+    }
+    identities.set(request, await auth.authenticate(cookie(request, "analytics_auth")));
+    if (request.path.startsWith("/sessions")) {
+      requireIdentity(request);
+    }
+    next();
+  });
+  app.get("/api/auth/google", async (request, response) => {
+    if (!deps.google) {
+      throw new RequestError(400, "login_unavailable", "Google login is not configured");
+    }
+    const attempt = await auth.begin(deps.google, identities.get(request) ?? null);
+    response.cookie("analytics_oauth", attempt.token, {
+      ...cookieOptions,
+      path: "/api/auth",
+      maxAge: 10 * 60 * 1000,
+    });
+    response.redirect(attempt.url);
+  });
+  app.get("/api/auth/google/callback", async (request, response) => {
+    response.clearCookie("analytics_oauth", {
+      ...cookieOptions,
+      maxAge: undefined,
+      path: "/api/auth",
+    });
+    try {
+      if (!deps.google) {
+        throw new Error("Google login unavailable");
+      }
+      const { state, code } = z
+        .object({ state: z.string().min(1), code: z.string().min(1) })
+        .parse(request.query);
+      const current = identities.get(request) ?? null;
+      const login = await auth.login(
+        deps.google,
+        cookie(request, "analytics_oauth"),
+        state,
+        code,
+        current,
+      );
+      if (current) {
+        stopStreams(current.tokenHash);
+      }
+      response.cookie("analytics_auth", login.token, cookieOptions);
+      response.redirect(`${origin}/`);
+    } catch {
+      response.redirect(`${origin}/?login=failed`);
+    }
+  });
   app.use(express.json({ limit: "64kb" }));
   const server = initServer();
   createExpressEndpoints(
     jsonContract,
     server.router(jsonContract, {
       health: async () => ({ status: 200, body: { status: "ok" } }),
-      createSession: async () => ({ status: 201, body: await deps.store.createSession() }),
-      history: async ({ params }) => ({ status: 200, body: await deps.store.history(params.id) }),
-      result: async ({ params }) => ({
+      identity: async ({ req }) => ({
         status: 200,
-        body: await deps.store.result(params.id, params.ref),
+        body: { identity: identities.get(req)?.identity ?? null },
       }),
+      guest: async ({ req, res }) => {
+        const current = identities.get(req);
+        if (current) {
+          return { status: 201, body: current.identity };
+        }
+        const guest = await auth.guest();
+        res.cookie("analytics_auth", guest.token, cookieOptions);
+        return { status: 201, body: guest.identity };
+      },
+      logout: async ({ req, res }) => {
+        const current = requireIdentity(req);
+        await auth.revoke(current.tokenHash);
+        stopStreams(current.tokenHash);
+        res.clearCookie("analytics_auth", { ...cookieOptions, maxAge: undefined });
+        return { status: 200, body: { ok: true } };
+      },
+      listSessions: async ({ req }) => ({
+        status: 200,
+        body: await deps.store.listSessions(requireIdentity(req).identity.id),
+      }),
+      createSession: async ({ req }) => {
+        const current = requireIdentity(req);
+        return {
+          status: 201,
+          body: await deps.store.createSession(current.identity.id, current.tokenHash),
+        };
+      },
+      history: async ({ params, req }) => {
+        await deps.store.assertOwner(params.id, requireIdentity(req).identity.id);
+        return { status: 200, body: await deps.store.history(params.id) };
+      },
+      result: async ({ params, req }) => {
+        await deps.store.assertOwner(params.id, requireIdentity(req).identity.id);
+        return { status: 200, body: await deps.store.result(params.id, params.ref) };
+      },
     }),
     app,
     {
@@ -35,17 +168,57 @@ export function createApp(deps: AgentDependencies & { store: Store }) {
   app.post(turnContract.path, async (request, response) => {
     const { id: sessionId } = turnContract.pathParams.parse(request.params);
     const input = turnContract.body.parse(request.body);
+    const current = requireIdentity(request);
+    await deps.store.assertOwner(sessionId, current.identity.id);
     const controller = new AbortController();
     const onClose = () => {
       controller.abort(new Error("Browser disconnected"));
     };
+    const turn = await deps.store.startTurn(
+      sessionId,
+      input.clientTurnId,
+      input.message,
+      current.identity.id,
+      current.tokenHash,
+    );
     response.once("close", onClose);
-    const turn = await deps.store.startTurn(sessionId, input.clientTurnId, input.message);
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(limits.deadlineMs)]);
     const stream = openStream(response, signal);
     const work = async () => {
+      let started = false;
+      const titleAttempt = turn.titleAttempt;
+      if (titleAttempt) {
+        const titleTask = async () => {
+          try {
+            const session = await generateTitle(deps.store, deps.titles, sessionId, titleAttempt);
+            if (
+              started &&
+              session &&
+              !response.writableEnded &&
+              !response.destroyed &&
+              !signal.aborted
+            ) {
+              await stream.send({ type: "session_updated", turnId: turn.id, session });
+            }
+          } catch (error) {
+            console.error(
+              JSON.stringify({
+                event: "title_persistence_failed",
+                reason: error instanceof Error ? error.message : "Unknown failure",
+              }),
+            );
+          }
+        };
+        const task = titleTask();
+        titleTasks.add(task);
+        task.then(
+          () => titleTasks.delete(task),
+          () => titleTasks.delete(task),
+        );
+      }
       try {
         await stream.send({ type: "turn_started", turnId: turn.id });
+        started = true;
         const outcome = await runAgent(deps, sessionId, turn.id, signal, stream.send);
         if (!response.destroyed && !signal.aborted) {
           await stream.send({ type: "turn_finished", turnId: turn.id, ...outcome });
@@ -69,7 +242,7 @@ export function createApp(deps: AgentDependencies & { store: Store }) {
       }
     };
     const task = work();
-    active.set(controller, task);
+    active.set(controller, { task, tokenHash: current.tokenHash });
     await task;
   });
   app.use(errors);
@@ -79,7 +252,8 @@ export function createApp(deps: AgentDependencies & { store: Store }) {
       for (const controller of active.keys()) {
         controller.abort(new Error("Server shutdown"));
       }
-      await Promise.allSettled(active.values());
+      await Promise.allSettled([...active.values()].map((work) => work.task));
+      await Promise.allSettled(titleTasks);
     },
   };
 }

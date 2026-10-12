@@ -7,6 +7,7 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:5174",
     browserName: "chromium",
+    extraHTTPHeaders: { Origin: "http://127.0.0.1:5174" },
     launchOptions: executablePath ? { executablePath } : {},
     trace: "retain-on-failure",
   },

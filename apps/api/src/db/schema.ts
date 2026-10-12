@@ -4,6 +4,7 @@ import {
   bigint,
   bigserial,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -13,8 +14,38 @@ import {
 } from "drizzle-orm/pg-core";
 import type { ApiError, QueryResult } from "@analytics/contracts";
 
+export const users = pgTable("users", {
+  id: uuid().primaryKey().defaultRandom(),
+  kind: text({ enum: ["guest", "google"] }).notNull(),
+  googleSubject: text().unique(),
+  name: text(),
+  email: text(),
+});
+export const authSessions = pgTable("auth_sessions", {
+  tokenHash: text().primaryKey(),
+  userId: uuid()
+    .notNull()
+    .references(() => users.id),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  revokedAt: timestamp({ withTimezone: true }),
+});
+export const oauthAttempts = pgTable("oauth_attempts", {
+  tokenHash: text().primaryKey(),
+  stateHash: text().notNull(),
+  verifier: text().notNull(),
+  nonce: text().notNull(),
+  guestTokenHash: text(),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+});
 export const sessions = pgTable("sessions", {
   id: uuid().primaryKey().defaultRandom(),
+  ownerId: uuid().references(() => users.id),
+  title: text().notNull().default("New chat"),
+  titleStatus: text({ enum: ["idle", "pending", "succeeded", "failed"] })
+    .notNull()
+    .default("idle"),
+  titleRevision: integer().notNull().default(0),
+  userMessageCount: integer().notNull().default(0),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
@@ -76,4 +107,21 @@ export const queryResults = pgTable(
     sequence: bigint({ mode: "bigint" }).notNull().generatedAlwaysAsIdentity(),
   },
   (table) => [index("result_history").on(table.sessionId, table.sequence)],
+);
+
+export const titleAttempts = pgTable(
+  "title_attempts",
+  {
+    sessionId: uuid()
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    revision: integer().notNull(),
+    status: text({ enum: ["pending", "succeeded", "failed"] }).notNull(),
+    usage: jsonb().$type<{
+      inputTokens: number | null;
+      outputTokens: number | null;
+      cost: number | null;
+    }>(),
+  },
+  (table) => [uniqueIndex("title_attempt_revision").on(table.sessionId, table.revision)],
 );

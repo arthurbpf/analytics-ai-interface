@@ -31,18 +31,21 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChatController } from "./controller.ts";
 import { ChartView } from "./charts.tsx";
+import { Markdown } from "./markdown.tsx";
 import { storageKey } from "./storage.ts";
 
 function AnalysisView({ analysis }: { analysis: Analysis }) {
   return (
     <div className="space-y-4">
-      <p className="whitespace-pre-wrap text-sm leading-7">{analysis.narrative}</p>
+      <Markdown>{analysis.narrative}</Markdown>
       {analysis.caveats.length > 0 && (
         <div className="border-l-2 pl-4 text-xs leading-6 text-muted-foreground">
           <p className="font-medium text-foreground">Caveats</p>
           <ul className="list-disc pl-4">
             {[...new Set(analysis.caveats)].map((caveat) => (
-              <li key={caveat}>{caveat}</li>
+              <li key={caveat}>
+                <Markdown>{caveat}</Markdown>
+              </li>
             ))}
           </ul>
         </div>
@@ -91,7 +94,7 @@ function SessionSidebar({
                   aria-label={entry.label}
                 >
                   <span className="truncate">{entry.label}</span>
-                  {state.active?.sessionId === entry.id && (
+                  {(state.responses[entry.id] || entry.runningTurn) && (
                     <span
                       aria-label="Responding"
                       className="ml-auto size-1.5 shrink-0 bg-primary"
@@ -109,8 +112,20 @@ function SessionSidebar({
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-5 text-[11px] leading-5 text-muted-foreground">
-        Saved on this browser.
-        <br />
+        <span>
+          {state.identity?.kind === "google"
+            ? (state.identity.name ?? state.identity.email ?? "Google account")
+            : "Guest"}
+        </span>
+        {state.identity?.email && <span className="break-all">{state.identity.email}</span>}
+        {state.identity?.kind === "guest" && (
+          <a className="underline" href="/api/auth/google">
+            Sign in with Google
+          </a>
+        )}
+        <Button type="button" variant="outline" onClick={controller.logout}>
+          Log out
+        </Button>
         GA4 ecommerce sample · Nov 2020–Jan 2021
       </SidebarFooter>
     </Sidebar>
@@ -122,15 +137,20 @@ export function ChatPage() {
   const [controller] = useState(() => new ChatController());
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [input, setInput] = useState("");
+  const loginError =
+    new URLSearchParams(window.location.search).get("login") === "failed"
+      ? "Google login failed. Your guest chats are still available."
+      : null;
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const initialized = useRef(false);
+  const previousIdentity = useRef<string | null>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
   const [showJump, setShowJump] = useState(false);
   const history = state.selected ? state.histories[state.selected] : undefined;
-  const active = state.active?.sessionId === state.selected ? state.active : null;
+  const active = state.selected ? (state.responses[state.selected] ?? null) : null;
   const hasRunningTurn = history?.turns.some((turn) => turn.status === "running") ?? false;
-  const disabled = Boolean(state.active || state.loading || hasRunningTurn);
+  const disabled = Boolean(active || state.creating || state.loading || hasRunningTurn);
   const label =
     state.index.sessions.find((entry) => entry.id === state.selected)?.label ?? "New analysis";
   const choose = (id: string | null) => {
@@ -146,6 +166,41 @@ export function ChatPage() {
     );
   };
   useEffect(() => {
+    controller.initialize();
+    const refresh = () => controller.synchronize();
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      controller.dispose();
+    };
+  }, [controller]);
+  useEffect(() => {
+    if (!state.ready) {
+      return;
+    }
+    if (!state.identity) {
+      if (previousIdentity.current) {
+        initialized.current = false;
+        previousIdentity.current = null;
+        navigate({ search: {}, replace: true }).then(
+          () => {},
+          () => setNavigationError("Could not reset the session URL."),
+        );
+      }
+      return;
+    }
+    if (previousIdentity.current && previousIdentity.current !== state.identity.id) {
+      previousIdentity.current = state.identity.id;
+      initialized.current = true;
+      setInput("");
+      controller.select(null);
+      navigate({ search: {}, replace: true }).then(
+        () => {},
+        () => setNavigationError("Could not reset the session URL."),
+      );
+      return;
+    }
+    previousIdentity.current = state.identity.id;
     const id = initialized.current
       ? (session ?? null)
       : (session ?? controller.getSnapshot().index.selected);
@@ -164,9 +219,9 @@ export function ChatPage() {
         },
       );
     }
-  }, [controller, navigate, session]);
+  }, [controller, navigate, session, state.ready, state.identity]);
   useEffect(() => {
-    if (state.selected && state.active?.sessionId === state.selected && !session) {
+    if (state.selected && state.responses[state.selected] && !session) {
       navigate({ search: { session: state.selected }, replace: true }).then(
         () => {},
         () => {
@@ -174,7 +229,7 @@ export function ChatPage() {
         },
       );
     }
-  }, [navigate, session, state.selected, state.active?.sessionId]);
+  }, [navigate, session, state.selected, state.responses]);
   useEffect(() => {
     const synchronize = (event: StorageEvent) => {
       if (event.key === storageKey || event.key === null) {
@@ -189,7 +244,7 @@ export function ChatPage() {
 
   useEffect(() => {
     const element = viewport.current;
-    if (!history?.messages.length && !state.active) {
+    if (!history?.messages.length && !active) {
       return;
     }
     if (!element) {
@@ -198,7 +253,7 @@ export function ChatPage() {
     if (nearBottom.current) {
       element.scrollTop = element.scrollHeight;
     }
-  }, [history, state.active]);
+  }, [history, active]);
   const send = (event?: FormEvent) => {
     event?.preventDefault();
     if (disabled || !input.trim() || input.trim().length > 8000) {
@@ -207,6 +262,30 @@ export function ChatPage() {
     controller.send(input);
     setInput("");
   };
+  if (!state.ready || !state.identity) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-5 px-6">
+        <h1 className="text-2xl font-medium">Ecommerce analytics</h1>
+        <p className="text-sm leading-7 text-muted-foreground">
+          Explore the GA4 ecommerce sample with private conversations.
+        </p>
+        {state.error && <p role="alert">{state.error}</p>}
+        {loginError && <p role="alert">{loginError}</p>}
+        {state.ready ? (
+          <>
+            <a className="border px-4 py-3 text-center text-sm" href="/api/auth/google">
+              Sign in with Google
+            </a>
+            <Button type="button" variant="outline" onClick={controller.guest}>
+              Continue as guest
+            </Button>
+          </>
+        ) : (
+          <p>Loading account…</p>
+        )}
+      </main>
+    );
+  }
   return (
     <TooltipProvider>
       <SidebarProvider
@@ -236,10 +315,10 @@ export function ChatPage() {
             }}
           >
             <div className="mx-auto max-w-3xl space-y-7 px-5 py-8 md:px-10">
-              {(state.warning || state.error || navigationError) && (
+              {(state.warning || state.error || navigationError || loginError) && (
                 <Alert variant={state.error ? "destructive" : "default"}>
                   <AlertDescription>
-                    {state.error ?? navigationError ?? state.warning}
+                    {state.error ?? navigationError ?? loginError ?? state.warning}
                     <Button type="button" variant="link" onClick={controller.reload}>
                       Reload saved history
                     </Button>
@@ -321,9 +400,9 @@ export function ChatPage() {
                   {active.draft && (
                     <div data-testid="narrative-draft">
                       <Badge variant="outline">Draft — awaiting validation</Badge>
-                      <p className="mt-3 text-sm leading-7 whitespace-pre-wrap">
-                        {active.draft.text}
-                      </p>
+                      <div className="mt-3">
+                        <Markdown>{active.draft.text}</Markdown>
+                      </div>
                     </div>
                   )}
                   {active.analysis &&
@@ -368,9 +447,9 @@ export function ChatPage() {
                   <ArrowDownIcon /> Jump to latest
                 </Button>
               )}
-              {state.active && (
+              {active && (
                 <div className="mb-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                  <output className="truncate">Responding to {state.active.label}</output>
+                  <output className="truncate">Responding to {active.label}</output>
                   <Button type="button" variant="outline" onClick={controller.stop}>
                     <StopIcon /> Stop
                   </Button>

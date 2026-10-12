@@ -3,6 +3,11 @@ import { test, expect } from "@playwright/test";
 import { z } from "zod";
 import { historySchema, sessionSchema, streamEventSchema } from "@analytics/contracts";
 
+test.beforeEach(async ({ request, page }) => {
+  expect((await request.post("/api/auth/guest")).status()).toBe(201);
+  await page.context().addCookies((await request.storageState()).cookies);
+});
+
 test("API rejects invalid requests before opening a stream", async ({ request }) => {
   const sessionResponse = await request.post("/api/sessions");
   const raw: unknown = await sessionResponse.json();

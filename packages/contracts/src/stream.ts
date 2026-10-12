@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { analysisSchema, publishedChartSchema } from "./charts.ts";
-import { idSchema, apiErrorSchema, terminalStatusSchema } from "./sessions.ts";
+import { idSchema, apiErrorSchema, terminalStatusSchema, sessionSchema } from "./sessions.ts";
 
 const eventBase = z.object({ turnId: idSchema });
 export const streamEventSchema = z.discriminatedUnion("type", [
   eventBase.extend({ type: z.literal("turn_started") }),
+  eventBase.extend({ type: z.literal("session_updated"), session: sessionSchema }),
   eventBase.extend({
     type: z.literal("progress"),
     stage: z.enum(["thinking", "querying", "charting", "composing"]),

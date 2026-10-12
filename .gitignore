@@ -11,7 +11,10 @@ devenv.local.yaml
 
 # Node
 node_modules/
-packages/contracts/dist/
+
+# Compiled output and caches
+dist/
+.turbo/
 
 # Local credentials and test artifacts
 .env

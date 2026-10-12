@@ -18,9 +18,8 @@ it("accepts dry-run metadata with a job reference but no job ID", async () => {
     },
   };
   const response: JobResponse = [job, {}];
-  const create = vi
-    .spyOn(BigQuery.prototype, "createQueryJob")
-    .mockImplementation(async () => response);
+  const promiseClient: { createQueryJob(query: string): Promise<JobResponse> } = BigQuery.prototype;
+  const create = vi.spyOn(promiseClient, "createQueryJob").mockResolvedValue(response);
   try {
     const inspection = await new BigQueryWarehouse("test-project").inspect(
       sql,

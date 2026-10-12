@@ -15,6 +15,10 @@ export const sessionSchema = z.object({
   id: idSchema,
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+  title: z.string().max(60),
+  titleStatus: z.enum(["idle", "pending", "succeeded", "failed"]),
+  titleRevision: z.number().int().nonnegative(),
+  runningTurn: z.boolean().default(false),
 });
 export const turnSchema = z.object({
   id: idSchema,
@@ -42,3 +46,12 @@ export const historySchema = z.object({
   messages: z.array(displayMessageSchema),
 });
 export type SessionHistory = z.infer<typeof historySchema>;
+
+export type Session = z.infer<typeof sessionSchema>;
+export const identitySchema = z.object({
+  id: idSchema,
+  kind: z.enum(["guest", "google"]),
+  name: z.string().nullable(),
+  email: z.string().nullable(),
+});
+export type Identity = z.infer<typeof identitySchema>;

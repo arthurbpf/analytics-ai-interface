@@ -1,3 +1,5 @@
+import { GoogleOAuth } from "./auth.ts";
+import { OpenRouterTitles } from "./llm/titles.ts";
 import { createApp } from "./app.ts";
 import { readConfig } from "./config.ts";
 import { Store } from "./db/store.ts";
@@ -9,6 +11,17 @@ const store = new Store(config.databaseUrl);
 await store.recover();
 const { app, shutdown } = createApp({
   store,
+  origin: config.origin,
+  secureCookies: config.secureCookies,
+  google:
+    config.googleClientId && config.googleClientSecret
+      ? new GoogleOAuth(
+          config.googleClientId,
+          config.googleClientSecret,
+          `${config.origin}/api/auth/google/callback`,
+        )
+      : undefined,
+  titles: new OpenRouterTitles(config.apiKey, config.titleModel),
   model: new OpenRouter(config.apiKey, config.model),
   warehouse: new BigQueryWarehouse(config.projectId),
   queryBytes: config.queryBytes,
