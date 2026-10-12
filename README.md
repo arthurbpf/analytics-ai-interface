@@ -19,6 +19,9 @@ cp .env.example .env
 devenv up postgres
 ```
 
+Entering the devenv shell installs a pre-commit hook that runs `pnpm format:check`.
+If it fails, run `pnpm format`, review and stage the changes, then commit again.
+
 Leave PostgreSQL running. In another shell, populate `.env` with OpenRouter
 credentials, a tool-capable model, and a Google Cloud billing project. Configure
 Google Application Default Credentials or a service-account file as described

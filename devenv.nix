@@ -1,4 +1,4 @@
-{pkgs, ...}: {
+{ pkgs, ... }: {
   languages.javascript = {
     enable = true;
     package = pkgs.nodejs_24;
@@ -9,12 +9,20 @@
   services.postgres = {
     enable = true;
     package = pkgs.postgresql_16;
-    extensions = extensions: [extensions.pgvector];
+    extensions = extensions: [ extensions.pgvector ];
     listen_addresses = "127.0.0.1";
     initialDatabases = [
-      {name = "analytics";}
-      {name = "analytics_test";}
+      { name = "analytics"; }
+      { name = "analytics_test"; }
     ];
+  };
+
+  git-hooks.hooks.format = {
+    enable = true;
+    name = "Check formatting";
+    entry = "pnpm format:check";
+    pass_filenames = false;
+    always_run = true;
   };
 
   packages = [
