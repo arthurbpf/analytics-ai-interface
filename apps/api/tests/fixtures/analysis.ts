@@ -1,6 +1,8 @@
+import type { ModelMessage } from "../../src/llm/messages.ts";
+import type { AgentHistory } from "../../src/db/history.ts";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { ModelMessage, QueryResult, SessionHistory } from "@analytics/contracts";
+import type { QueryResult } from "@analytics/contracts";
 import type { ModelClient, ModelResponse } from "../../src/llm/openrouter.ts";
 import type { AgentStore } from "../../src/db/store.ts";
 import { RequestError } from "../../src/db/store.ts";
@@ -17,13 +19,13 @@ export const result: QueryResult = {
 export function call(name: string, args: unknown): ModelResponse {
   return { message: { role: "assistant", content: null, toolCalls: [{ id: randomUUID(), name, arguments: JSON.stringify(args) }] }, usage: { inputTokens: 10, outputTokens: 10, cost: 0.001 } };
 }
-export function memoryStore(): { store: AgentStore; history: SessionHistory; results: Map<string, QueryResult> } {
-  const history: SessionHistory = { session: { id: sessionId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+export function memoryStore(): { store: AgentStore; history: AgentHistory; results: Map<string, QueryResult> } {
+  const history: AgentHistory = { session: { id: sessionId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
     turns: [{ id: turnId, clientTurnId: randomUUID(), status: "running", createdAt: new Date().toISOString(), finishedAt: null, error: null }],
     messages: [{ id: randomUUID(), turnId, content: { kind: "model", message: { role: "user", content: "Purchases by device" } } }] };
   const results = new Map<string, QueryResult>();
   const store: AgentStore = {
-    history: async () => history,
+    agentHistory: async () => history,
     append: async (_session, turn, content) => { history.messages.push({ id: randomUUID(), turnId: turn, content }); },
     saveResult: async (_session, _turn, data) => { results.set(data.ref, data); },
     result: async (session, ref) => { const saved = results.get(ref); if (session !== sessionId || !saved) { throw new RequestError(404, "not_found", "Result not found"); } return saved; },

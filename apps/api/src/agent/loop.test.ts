@@ -44,7 +44,7 @@ it("repairs a chart mapping without streaming an invalid chart", async () => {
     requests++; const response = await normal.complete(system, messages, tools, signal);
     if (requests === 2) { const first = response.message.toolCalls[0]; if (first) { const raw: unknown = JSON.parse(first.arguments); const { chartSpecSchema } = await import("@analytics/contracts"); first.arguments = JSON.stringify({ ...chartSpecSchema.parse(raw), y: "missing" }); } }
     if (requests === 3) {
-      const history = await deps.store.history(sessionId); const chart = history.messages.find((message) => message.content.kind === "model" && message.content.message.role === "assistant" && message.content.message.toolCalls.some((tool) => tool.name === "publish_chart"));
+      const history = await deps.store.agentHistory(sessionId); const chart = history.messages.find((message) => message.content.kind === "model" && message.content.message.role === "assistant" && message.content.message.toolCalls.some((tool) => tool.name === "publish_chart"));
       if (chart?.content.kind === "model" && chart.content.message.role === "assistant") {
         const first = chart.content.message.toolCalls[0]; if (first) { const { chartSpecSchema } = await import("@analytics/contracts"); const raw: unknown = JSON.parse(first.arguments); return call("publish_chart", { ...chartSpecSchema.parse(raw), y: "purchases" }); }
       }

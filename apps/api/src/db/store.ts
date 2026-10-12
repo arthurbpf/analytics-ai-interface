@@ -1,7 +1,8 @@
+import { displayHistory, type AgentHistory, type StoredMessageContent } from "./history.ts";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { historySchema, queryResultSchema, sessionSchema, turnSchema, type ApiError, type MessageContent, type QueryResult, type TerminalStatus } from "@analytics/contracts";
+import { historySchema, queryResultSchema, sessionSchema, turnSchema, type ApiError, type QueryResult, type TerminalStatus } from "@analytics/contracts";
 import * as schema from "./schema.ts";
 
 export class RequestError extends Error {
@@ -22,15 +23,18 @@ export class Store {
     return sessionSchema.parse({ ...session, createdAt: session.createdAt.toISOString(), updatedAt: session.updatedAt.toISOString() });
   }
   async history(sessionId: string) {
+    return historySchema.parse(displayHistory(await this.agentHistory(sessionId)));
+  }
+  async agentHistory(sessionId: string): Promise<AgentHistory> {
     const [session] = await this.db.select().from(schema.sessions).where(eq(schema.sessions.id, sessionId));
     if (!session) { throw new RequestError(404, "not_found", "Session not found"); }
     const turnRows = await this.db.select().from(schema.turns).where(eq(schema.turns.sessionId, sessionId)).orderBy(asc(schema.turns.createdAt), asc(schema.turns.id));
     const messageRows = await this.db.select().from(schema.messages).where(eq(schema.messages.sessionId, sessionId)).orderBy(asc(schema.messages.sequence));
-    return historySchema.parse({
-      session: { ...session, createdAt: session.createdAt.toISOString(), updatedAt: session.updatedAt.toISOString() },
-      turns: turnRows.map((turn) => ({ ...turn, createdAt: turn.createdAt.toISOString(), finishedAt: turn.finishedAt?.toISOString() ?? null })),
+    return {
+      session: sessionSchema.parse({ ...session, createdAt: session.createdAt.toISOString(), updatedAt: session.updatedAt.toISOString() }),
+      turns: turnRows.map((turn) => turnSchema.parse({ ...turn, createdAt: turn.createdAt.toISOString(), finishedAt: turn.finishedAt?.toISOString() ?? null })),
       messages: messageRows.map((message) => ({ id: message.id, turnId: message.turnId, content: message.content })),
-    });
+    };
   }
   async startTurn(sessionId: string, clientTurnId: string, message: string) {
     return this.db.transaction(async (tx) => {
@@ -47,7 +51,7 @@ export class Store {
       return turnSchema.parse({ ...turn, createdAt: turn.createdAt.toISOString(), finishedAt: null });
     });
   }
-  async append(sessionId: string, turnId: string, content: MessageContent) {
+  async append(sessionId: string, turnId: string, content: StoredMessageContent) {
     await this.db.insert(schema.messages).values({ sessionId, turnId, content });
   }
   async saveResult(sessionId: string, turnId: string, data: QueryResult) {
@@ -65,7 +69,7 @@ export class Store {
   async finish(turnId: string, status: TerminalStatus, error: ApiError | null, usage: typeof schema.turns.$inferInsert.usage = null) {
     await this.db.update(schema.turns).set({ status, error, usage, finishedAt: new Date() }).where(and(eq(schema.turns.id, turnId), eq(schema.turns.status, "running")));
   }
-  async complete(sessionId: string, turnId: string, content: Extract<MessageContent, { kind: "analysis" }>, usage: typeof schema.turns.$inferInsert.usage) {
+  async complete(sessionId: string, turnId: string, content: Extract<StoredMessageContent, { kind: "analysis" }>, usage: typeof schema.turns.$inferInsert.usage) {
     await this.db.transaction(async (tx) => {
       await tx.insert(schema.messages).values({ sessionId, turnId, content });
       await tx.update(schema.turns).set({ status: "completed", finishedAt: new Date(), usage }).where(and(eq(schema.turns.id, turnId), eq(schema.turns.status, "running")));
@@ -76,4 +80,4 @@ export class Store {
     await this.db.update(schema.turns).set({ status: "interrupted", finishedAt: new Date(), error: { code: "server_restart", message: "Server restarted; paid work was not replayed." } }).where(eq(schema.turns.status, "running"));
   }
 }
-export type AgentStore = Pick<Store, "history" | "append" | "saveResult" | "result" | "recentResults" | "finish" | "complete">;
+export type AgentStore = Pick<Store, "agentHistory" | "append" | "saveResult" | "result" | "recentResults" | "finish" | "complete">;

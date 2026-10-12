@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ModelMessage } from "@analytics/contracts";
+import type { ModelMessage } from "./messages.ts";
 import { limits } from "../config.ts";
 
 export interface ToolDefinition {

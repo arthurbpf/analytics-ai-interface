@@ -1,5 +1,6 @@
+import type { ModelMessage, ToolCall } from "../llm/messages.ts";
 import { z } from "zod";
-import type { ApiError, ModelMessage, PublishedChart, StreamEvent, TerminalStatus, ToolCall } from "@analytics/contracts";
+import type { ApiError, PublishedChart, StreamEvent, TerminalStatus } from "@analytics/contracts";
 import { limits } from "../config.ts";
 import { ToolError } from "../errors.ts";
 import { RequestError } from "../db/store.ts";
@@ -81,7 +82,7 @@ export async function runAgent(deps: AgentDependencies, sessionId: string, turnI
       await progress(finalOnly ? "composing" : "thinking", finalOnly ? "Composing the final analysis" : "Planning the next analysis step");
       const system = `You analyze the GA4 ecommerce sample through tools. Use get_metrics for authoritative meanings. Freely author SQL within executor limits. Publish relevant charts from complete saved results before your final narrative. Complete only with present_analysis; distinguish missing data from zero. Never treat previews as full evidence. Do not expose private reasoning. If the question is ambiguous, use present_analysis to ask a clarification. Available data: 2020-11-01 through 2021-01-31. Prior saved results: ${JSON.stringify(await store.recentResults(sessionId))}${finalOnly ? " You must now present existing findings; no new queries." : ""}`;
       const tools = finalOnly ? toolDefinitions.filter((tool) => tool.function.name === "present_analysis") : toolDefinitions;
-      const context = buildContext(await store.history(sessionId), turnId, Buffer.byteLength(system) + Buffer.byteLength(JSON.stringify(tools)));
+      const context = buildContext(await store.agentHistory(sessionId), turnId, Buffer.byteLength(system) + Buffer.byteLength(JSON.stringify(tools)));
       const response = await model.complete(system, context, tools, signal);
       signal.throwIfAborted();
       usage.modelCalls++;

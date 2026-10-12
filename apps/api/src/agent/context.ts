@@ -1,7 +1,8 @@
-import type { ModelMessage, SessionHistory } from "@analytics/contracts";
+import type { ModelMessage } from "../llm/messages.ts";
+import type { AgentHistory } from "../db/history.ts";
 import { limits } from "../config.ts";
 
-export function buildContext(history: SessionHistory, activeTurnId: string, overhead: number): ModelMessage[] {
+export function buildContext(history: AgentHistory, activeTurnId: string, overhead: number): ModelMessage[] {
   const active = history.messages.filter((message) => message.turnId === activeTurnId && message.content.kind === "model").flatMap((message) => message.content.kind === "model" ? [message.content.message] : []);
   const groups: ModelMessage[][] = [];
   for (const turn of history.turns) {

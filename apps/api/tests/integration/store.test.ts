@@ -15,6 +15,8 @@ afterAll(async () => { if (store) { for (const id of created) { await store.db.d
 async function session() { const createdSession = await store.createSession(); created.push(createdSession.id); return createdSession; }
 it("persists ordered messages, query rows, charts and answer across connection restart", async () => {
   const s = await session(); const turn = await store.startTurn(s.id, randomUUID(), "Device purchases");
+  await store.append(s.id, turn.id, { kind: "model", message: { role: "assistant", content: "Internal reasoning", toolCalls: [{ id: "call-1", name: "run_sql", arguments: "{}" }] } });
+  await store.append(s.id, turn.id, { kind: "model", message: { role: "tool", toolCallId: "call-1", content: "Internal result" } });
   await store.saveResult(s.id, turn.id, result);
   const chart = validateChart({ type: "bar", title: "Device", resultRef: result.ref, x: "device", y: "purchases" }, result);
   await store.append(s.id, turn.id, { kind: "chart", chart });
@@ -23,8 +25,10 @@ it("persists ordered messages, query rows, charts and answer across connection r
   const reopened = new Store(process.env["TEST_DATABASE_URL"] ?? "postgresql://localhost:5432/analytics_test");
   try {
     const history = await reopened.history(s.id);
+    expect((await reopened.agentHistory(s.id)).messages).toHaveLength(5);
+    expect(history.messages[0]?.content).toEqual({ kind: "user", text: "Device purchases" });
     expect(history.turns[0]?.status).toBe("completed");
-    expect(history.messages.map((message) => message.content.kind)).toEqual(["model", "chart", "analysis"]);
+    expect(history.messages.map((message) => message.content.kind)).toEqual(["user", "chart", "analysis"]);
     expect(await reopened.result(s.id, result.ref)).toEqual(result);
     expect(history.messages[1]?.content).toEqual({ kind: "chart", chart });
   } finally { await reopened.pool.end(); }

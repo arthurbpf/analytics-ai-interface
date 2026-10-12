@@ -1,6 +1,7 @@
+import type { StoredMessageContent } from "./history.ts";
 import { sql } from "drizzle-orm";
 import { bigint, bigserial, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import type { ApiError, MessageContent, QueryResult } from "@analytics/contracts";
+import type { ApiError, QueryResult } from "@analytics/contracts";
 
 export const sessions = pgTable("sessions", {
   id: uuid().primaryKey().defaultRandom(),
@@ -25,7 +26,7 @@ export const messages = pgTable("messages", {
   sequence: bigserial({ mode: "bigint" }).notNull(),
   sessionId: uuid().notNull().references(() => sessions.id, { onDelete: "cascade" }),
   turnId: uuid().notNull().references(() => turns.id, { onDelete: "cascade" }),
-  content: jsonb().$type<MessageContent>().notNull(),
+  content: jsonb().$type<StoredMessageContent>().notNull(),
 }, (table) => [index("message_history").on(table.sessionId, table.sequence)]);
 export const queryResults = pgTable("query_results", {
   ref: uuid().primaryKey(),

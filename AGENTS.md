@@ -156,7 +156,9 @@ whose name ends in `_test`.
 - Implemented: six-tool sequential agent loop, OpenRouter adapter, semantic
   definitions, SQL/resource checks, BigQuery dry-run and execution caps,
   PostgreSQL session/result storage, structured presentation, and SSE.
-- Shared schemas, types, and stream reader live in `packages/contracts`. Build
+- Shared API schemas, types, and stream reader live in `packages/contracts`, split
+  into results, charts, sessions, and stream modules. Browser history contains user
+  prompts and published output; model/tool exchanges remain backend-only. Build
   that package before direct API commands. Source imports use `.ts`; the compiler
   rewrites them for emitted JavaScript.
 - Charts are persisted before `chart_ready`. Final presentation validates saved
