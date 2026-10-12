@@ -1,5 +1,5 @@
 {
-  "name": "hockeystack",
+  "name": "analytics",
   "private": true,
   "type": "module",
   "scripts": {

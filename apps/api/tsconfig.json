@@ -3,12 +3,23 @@
   "compilerOptions": {
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2024"],
-    "types": ["node"],
+    "lib": [
+      "ES2024"
+    ],
+    "types": [
+      "node"
+    ],
     "rootDir": "src",
     "outDir": "dist",
     "sourceMap": true,
-    "erasableSyntaxOnly": true
+    "erasableSyntaxOnly": true,
+    "rewriteRelativeImportExtensions": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ]
 }

@@ -11,3 +11,11 @@ devenv.local.yaml
 
 # Node
 node_modules/
+
+# Local credentials and test artifacts
+.env
+.env.*
+!.env.example
+coverage/
+playwright-report/
+test-results/

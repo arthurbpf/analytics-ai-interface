@@ -1,0 +1,111 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "oxc",
+    "unicorn",
+    "import",
+    "react",
+    "jsx-a11y"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/coverage/**",
+    ".devenv/**",
+    ".direnv/**"
+  ],
+  "rules": {
+    "eslint/eqeqeq": [
+      "error",
+      "always"
+    ],
+    "eslint/curly": [
+      "error",
+      "all"
+    ],
+    "eslint/prefer-const": "error",
+    "eslint/no-var": "error",
+    "eslint/no-debugger": "error",
+    "eslint/no-eval": "error",
+    "eslint/no-implied-eval": "error",
+    "eslint/no-throw-literal": "error",
+    "eslint/array-callback-return": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/consistent-type-assertions": [
+      "error",
+      {
+        "assertionStyle": "never"
+      }
+    ],
+    "typescript/ban-ts-comment": [
+      "error",
+      {
+        "ts-expect-error": "allow-with-description",
+        "ts-ignore": true,
+        "ts-nocheck": true,
+        "minimumDescriptionLength": 10
+      }
+    ],
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "ignoreVoid": false
+      }
+    ],
+    "typescript/no-misused-promises": "error",
+    "typescript/await-thenable": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/switch-exhaustiveness-check": "error",
+    "import/no-cycle": "error",
+    "import/no-duplicates": "error",
+    "react/rules-of-hooks": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/exhaustive-deps": "error",
+    "react/jsx-key": "error",
+    "react/no-array-index-key": "error",
+    "react/no-danger": "error",
+    "react/button-has-type": "error"
+  },
+  "overrides": [
+    {
+      "files": [
+        "apps/web/src/**/*.{ts,tsx}"
+      ],
+      "env": {
+        "browser": true
+      },
+      "rules": {
+        "eslint/no-console": "error"
+      }
+    },
+    {
+      "files": [
+        "apps/api/**/*.ts",
+        "apps/web/vite.config.ts"
+      ],
+      "env": {
+        "node": true
+      }
+    },
+    {
+      "files": [
+        "apps/api/**/*.ts"
+      ],
+      "rules": {
+        "oxc/no-async-endpoint-handlers": "off"
+      }
+    }
+  ]
+}

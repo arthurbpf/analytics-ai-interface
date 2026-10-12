@@ -33,7 +33,8 @@ the problem beat more lines that almost do.
 The baseline design is in `../architecture.md`: a chat application analyzing
 the GA4 web ecommerce demo dataset in BigQuery, with narratives, visualizations,
 and multi-turn follow-ups. The decisions below supersede conflicting baseline
-proposals. They describe the intended implementation, not completed features.
+proposals. The implementation status below distinguishes completed backend work
+from remaining product and deployment work.
 
 - Hand-roll the agent loop; no LangChain, LlamaIndex, or other agent framework.
 - Baseline stack: TypeScript, Node/Express, React/Vite with plain CSS and no UI
@@ -141,10 +142,42 @@ eval "$(devenv direnvrc)"
 use devenv
 ```
 
-`devenv.nix` and `devenv.yaml` already exist. Installed devenv was 2.4.0 during
-this session. Bash syntax checks passed for `.envrc` and generated direnvrc;
-actual environment activation was not tested. Run `direnv allow` to authorize
-loading in a configured interactive shell.
+`devenv.nix`, `devenv.yaml`, and `devenv.lock` configure Node 24, pnpm,
+PostgreSQL 16 with pgvector, and Chromium. The shell sets
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE`; Playwright's configuration consumes it.
+Keep the test runner in pnpm dependencies; Nix supplies the browser.
+Run `direnv allow` to authorize loading in an interactive shell.
+Start PostgreSQL with `devenv up postgres`, populate `.env` using `.env.example`,
+and run the migration before starting the app. Tests use a separate database
+whose name ends in `_test`.
+
+# Implementation status and learnings
+
+- Implemented: six-tool sequential agent loop, OpenRouter adapter, semantic
+  definitions, SQL/resource checks, BigQuery dry-run and execution caps,
+  PostgreSQL session/result storage, structured presentation, and SSE.
+- Shared schemas, types, and stream reader live in `packages/contracts`. Build
+  that package before direct API commands. Source imports use `.ts`; the compiler
+  rewrites them for emitted JavaScript.
+- Charts are persisted before `chart_ready`. Final presentation validates saved
+  results and published charts before committing completion. Incomplete results
+  cannot support final evidence.
+- Disconnects preserve saved artifacts; duplicate client IDs do not replay work.
+  Startup recovery assumes one API process. Revisit turn ownership/recovery
+  before scaling to multiple instances.
+- Byte caps default to 1 GiB/query and 5 GiB/turn, pending live calibration.
+  Model usage is recorded separately; call/context/output limits are not a
+  dollar-denominated LLM spending cap.
+- Vitest units, real PostgreSQL integration, and Playwright browser tests use
+  scripted external services. See `docs/backend-test-cases.md` for verified
+  coverage and pending live checks. Browser tests verify transport/persistence,
+  not production chat/chart rendering.
+- Remaining: frontend chat/charts, live analytics validation, budget calibration,
+  authentication, Railway deployment/static serving, backups, retention policy.
+  No embeddings or vector indexes are implemented.
+- Express 5 handles rejected async handlers; the obsolete
+  `oxc/no-async-endpoint-handlers` lint rule is disabled. API `skipLibCheck` skips
+  incompatible dependency declarations; application/test source remains strict.
 
 # Documentation references
 
@@ -157,5 +190,5 @@ loading in a configured interactive shell.
 - devenv direnv integration: https://devenv.sh/integrations/direnv/
 
 Hosting capabilities and pricing change; verify current official documentation
-when implementing deployment. No application implementation or deployment was
-performed during this architecture discussion.
+when implementing deployment. The local backend is implemented; deployment
+has not been performed.

@@ -1,5 +1,5 @@
 {
-  "name": "@hockeystack/web",
+  "name": "@analytics/web",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,8 @@
   "dependencies": {
     "@tanstack/react-router": "1.170.41",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "@analytics/contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -12,7 +12,7 @@ const rootRoute = createRootRoute({ component: Outlet });
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: () => <h1>HockeyStack Analytics</h1>,
+  component: () => <h1>Data Analytics</h1>,
 });
 const router = createRouter({ routeTree: rootRoute.addChildren([indexRoute]) });
 

@@ -1,21 +1,36 @@
 {
-  "name": "@hockeystack/api",
+  "name": "@analytics/api",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.ts",
+    "dev": "node --env-file-if-exists=../../.env --watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node --env-file-if-exists=../../.env dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
     "lint": "oxlint --type-aware --max-warnings 0 -c ../../.oxlintrc.json .",
-    "lint:fix": "oxlint --type-aware --max-warnings 0 -c ../../.oxlintrc.json --fix ."
+    "lint:fix": "oxlint --type-aware --max-warnings 0 -c ../../.oxlintrc.json --fix .",
+    "test": "vitest run",
+    "test:integration": "node --env-file-if-exists=../../.env node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
+    "test:e2e": "node --env-file-if-exists=../../.env node_modules/@playwright/test/cli.js test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate.ts"
   },
   "dependencies": {
-    "express": "5.3.0"
+    "@google-cloud/bigquery": "9.2.0",
+    "drizzle-orm": "0.45.4",
+    "express": "5.3.0",
+    "node-sql-parser": "5.4.0",
+    "pg": "8.23.1",
+    "zod": "4.6.6",
+    "@analytics/contracts": "workspace:*"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "@types/express": "^5.0.0",
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.11",
+    "typescript": "catalog:",
+    "vitest": "5.0.3"
   }
 }

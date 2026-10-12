@@ -1,0 +1,511 @@
+{
+  "testedAt": "2026-10-12T18:17:04.545Z",
+  "project": "analytics-hs-511417",
+  "period": [
+    "2021-01-01",
+    "2021-01-31"
+  ],
+  "queryCap": "1073741824",
+  "turnCap": "5368709120",
+  "queries": [
+    {
+      "purpose": "January combined totals",
+      "estimatedBytes": "40586200",
+      "result": {
+        "columns": [
+          {
+            "name": "users",
+            "type": "number"
+          },
+          {
+            "name": "purchases",
+            "type": "number"
+          },
+          {
+            "name": "revenue",
+            "type": "number"
+          },
+          {
+            "name": "aov",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "users": 94790,
+            "purchases": 1204,
+            "revenue": 57350,
+            "aov": 47.6328903654485
+          }
+        ],
+        "complete": true,
+        "totalRows": "1",
+        "ref": "83d74cc8-cf87-45f6-a921-3a459d775206",
+        "sql": "SELECT COUNT(DISTINCT user_pseudo_id) AS users, COUNTIF(event_name = 'purchase') AS purchases, SUM(IF(event_name = 'purchase', COALESCE(ecommerce.purchase_revenue_in_usd, 0), 0)) AS revenue, SAFE_DIVIDE(SUM(IF(event_name = 'purchase', COALESCE(ecommerce.purchase_revenue_in_usd, 0), 0)), COUNTIF(event_name = 'purchase')) AS aov FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131'",
+        "purpose": "January combined totals",
+        "jobId": "218a63ba-c2fc-4af8-8bcc-01d2ab8b2c58",
+        "bytesProcessed": "40586200",
+        "bytesBilled": "40894464"
+      }
+    },
+    {
+      "purpose": "January canonical users",
+      "estimatedBytes": "25013059",
+      "result": {
+        "columns": [
+          {
+            "name": "users",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "users": 94790
+          }
+        ],
+        "complete": true,
+        "totalRows": "1",
+        "ref": "0e808070-f4de-4d62-8df6-5dbe155cc45d",
+        "sql": "SELECT COUNT(DISTINCT user_pseudo_id) AS users FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131'",
+        "purpose": "January canonical users",
+        "jobId": "3cffa737-bc29-44e7-87f6-cd79102a33f5",
+        "bytesProcessed": "25013059",
+        "bytesBilled": "25165824"
+      }
+    },
+    {
+      "purpose": "January canonical purchases",
+      "estimatedBytes": "15563509",
+      "result": {
+        "columns": [
+          {
+            "name": "purchases",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "purchases": 1204
+          }
+        ],
+        "complete": true,
+        "totalRows": "1",
+        "ref": "1f6127e1-760f-447b-bae2-8202a8da5a29",
+        "sql": "SELECT COUNTIF(event_name = 'purchase') AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131'",
+        "purpose": "January canonical purchases",
+        "jobId": "9211ec8d-2983-49c3-8cc1-f8da2515bed0",
+        "bytesProcessed": "15563509",
+        "bytesBilled": "15728640"
+      }
+    },
+    {
+      "purpose": "January canonical revenue",
+      "estimatedBytes": "15573141",
+      "result": {
+        "columns": [
+          {
+            "name": "revenue",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "revenue": 57350
+          }
+        ],
+        "complete": true,
+        "totalRows": "1",
+        "ref": "ca6cfb71-af7b-4c1d-87c7-696a35e7f87f",
+        "sql": "SELECT SUM(IF(event_name = 'purchase', COALESCE(ecommerce.purchase_revenue_in_usd, 0), 0)) AS revenue FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131'",
+        "purpose": "January canonical revenue",
+        "jobId": "9d4e3c9d-c3bd-4301-8484-ecdc0580e0e1",
+        "bytesProcessed": "15573141",
+        "bytesBilled": "15728640"
+      }
+    },
+    {
+      "purpose": "January canonical aov",
+      "estimatedBytes": "15573141",
+      "result": {
+        "columns": [
+          {
+            "name": "aov",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "aov": 47.6328903654485
+          }
+        ],
+        "complete": true,
+        "totalRows": "1",
+        "ref": "acdc107f-87c0-4507-be49-a8f98b3b0d9a",
+        "sql": "SELECT SAFE_DIVIDE(SUM(IF(event_name = 'purchase', COALESCE(ecommerce.purchase_revenue_in_usd, 0), 0)), COUNTIF(event_name = 'purchase')) AS aov FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131'",
+        "purpose": "January canonical aov",
+        "jobId": "32ee97b4-7d32-4f67-9294-24ab18fb98f7",
+        "bytesProcessed": "15573141",
+        "bytesBilled": "15728640"
+      }
+    },
+    {
+      "purpose": "January daily revenue",
+      "estimatedBytes": "27674611",
+      "result": {
+        "columns": [
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "revenue",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "date": "2021-01-01",
+            "revenue": 975
+          },
+          {
+            "date": "2021-01-02",
+            "revenue": 1026
+          },
+          {
+            "date": "2021-01-03",
+            "revenue": 552
+          },
+          {
+            "date": "2021-01-04",
+            "revenue": 834
+          },
+          {
+            "date": "2021-01-05",
+            "revenue": 1143
+          },
+          {
+            "date": "2021-01-06",
+            "revenue": 2000
+          },
+          {
+            "date": "2021-01-07",
+            "revenue": 1452
+          },
+          {
+            "date": "2021-01-08",
+            "revenue": 1699
+          },
+          {
+            "date": "2021-01-09",
+            "revenue": 1363
+          },
+          {
+            "date": "2021-01-10",
+            "revenue": 974
+          },
+          {
+            "date": "2021-01-11",
+            "revenue": 1496
+          },
+          {
+            "date": "2021-01-12",
+            "revenue": 2547
+          },
+          {
+            "date": "2021-01-13",
+            "revenue": 1858
+          },
+          {
+            "date": "2021-01-14",
+            "revenue": 3274
+          },
+          {
+            "date": "2021-01-15",
+            "revenue": 2071
+          },
+          {
+            "date": "2021-01-16",
+            "revenue": 1461
+          },
+          {
+            "date": "2021-01-17",
+            "revenue": 481
+          },
+          {
+            "date": "2021-01-18",
+            "revenue": 1223
+          },
+          {
+            "date": "2021-01-19",
+            "revenue": 3756
+          },
+          {
+            "date": "2021-01-20",
+            "revenue": 6706
+          },
+          {
+            "date": "2021-01-21",
+            "revenue": 4206
+          },
+          {
+            "date": "2021-01-22",
+            "revenue": 5552
+          },
+          {
+            "date": "2021-01-23",
+            "revenue": 2747
+          },
+          {
+            "date": "2021-01-24",
+            "revenue": 2408
+          },
+          {
+            "date": "2021-01-25",
+            "revenue": 3353
+          },
+          {
+            "date": "2021-01-26",
+            "revenue": 1259
+          },
+          {
+            "date": "2021-01-27",
+            "revenue": 457
+          },
+          {
+            "date": "2021-01-28",
+            "revenue": 128
+          },
+          {
+            "date": "2021-01-29",
+            "revenue": 190
+          },
+          {
+            "date": "2021-01-30",
+            "revenue": 159
+          },
+          {
+            "date": "2021-01-31",
+            "revenue": 0
+          }
+        ],
+        "complete": true,
+        "totalRows": "31",
+        "ref": "b08f2e97-9178-4f53-8bdb-9858bd90e58e",
+        "sql": "SELECT PARSE_DATE('%Y%m%d', event_date) AS date, SUM(COALESCE(ecommerce.purchase_revenue_in_usd, 0)) AS revenue FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131' AND event_name = 'purchase' GROUP BY date ORDER BY date",
+        "purpose": "January daily revenue",
+        "jobId": "63f6fa5a-9739-4a74-a4ea-c796c1d82198",
+        "bytesProcessed": "27674611",
+        "bytesBilled": "28311552"
+      }
+    },
+    {
+      "purpose": "January first-user attribution",
+      "estimatedBytes": "40447378",
+      "result": {
+        "columns": [
+          {
+            "name": "source",
+            "type": "string"
+          },
+          {
+            "name": "medium",
+            "type": "string"
+          },
+          {
+            "name": "revenue",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "source": "(data deleted)",
+            "medium": "(data deleted)",
+            "revenue": 6152
+          },
+          {
+            "source": "google",
+            "medium": "organic",
+            "revenue": 16032
+          },
+          {
+            "source": "<Other>",
+            "medium": "organic",
+            "revenue": 908
+          },
+          {
+            "source": "<Other>",
+            "medium": "referral",
+            "revenue": 6125
+          },
+          {
+            "source": "<Other>",
+            "medium": "(data deleted)",
+            "revenue": 12
+          },
+          {
+            "source": "google",
+            "medium": "cpc",
+            "revenue": 1839
+          },
+          {
+            "source": "(direct)",
+            "medium": "(none)",
+            "revenue": 12284
+          },
+          {
+            "source": "<Other>",
+            "medium": "<Other>",
+            "revenue": 5970
+          },
+          {
+            "source": "shop.googlemerchandisestore.com",
+            "medium": "referral",
+            "revenue": 8028
+          }
+        ],
+        "complete": true,
+        "totalRows": "9",
+        "ref": "d0f26f3c-8072-4276-88b7-9189b6c7dd98",
+        "sql": "SELECT COALESCE(traffic_source.source, '(unknown)') AS source, COALESCE(traffic_source.medium, '(unknown)') AS medium, SUM(COALESCE(ecommerce.purchase_revenue_in_usd, 0)) AS revenue FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131' AND event_name = 'purchase' GROUP BY source, medium",
+        "purpose": "January first-user attribution",
+        "jobId": "5839b085-a5c8-4ca6-8b2f-3b14804eaf27",
+        "bytesProcessed": "40447378",
+        "bytesBilled": "40894464"
+      }
+    },
+    {
+      "purpose": "January device session conversion; assign multi-device sessions using MIN(device)",
+      "estimatedBytes": "278232206",
+      "result": {
+        "columns": [
+          {
+            "name": "device",
+            "type": "string"
+          },
+          {
+            "name": "sessions",
+            "type": "number"
+          },
+          {
+            "name": "purchasing_sessions",
+            "type": "number"
+          },
+          {
+            "name": "conversion_rate",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "device": "desktop",
+            "sessions": 68649,
+            "purchasing_sessions": 617,
+            "conversion_rate": 0.008987749275298985
+          },
+          {
+            "device": "mobile",
+            "sessions": 47088,
+            "purchasing_sessions": 469,
+            "conversion_rate": 0.009960074753652735
+          },
+          {
+            "device": "tablet",
+            "sessions": 2643,
+            "purchasing_sessions": 29,
+            "conversion_rate": 0.010972379871358306
+          }
+        ],
+        "complete": true,
+        "totalRows": "3",
+        "ref": "0bc49c4f-5825-4ad3-8cea-b57ded56d532",
+        "sql": "WITH events AS (SELECT user_pseudo_id, event_name, COALESCE(device.category, '(unknown)') AS device, (SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS session_id FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131'), sessions AS (SELECT user_pseudo_id, session_id, MIN(device) AS device, MAX(IF(event_name = 'purchase', 1, 0)) AS purchased FROM events WHERE user_pseudo_id IS NOT NULL AND session_id IS NOT NULL GROUP BY user_pseudo_id, session_id) SELECT device, COUNT(*) AS sessions, SUM(purchased) AS purchasing_sessions, SAFE_DIVIDE(SUM(purchased), COUNT(*)) AS conversion_rate FROM sessions GROUP BY device ORDER BY device",
+        "purpose": "January device session conversion; assign multi-device sessions using MIN(device)",
+        "jobId": "8d25c782-058d-4650-83d4-4656e22eec32",
+        "bytesProcessed": "278232206",
+        "bytesBilled": "278921216"
+      }
+    },
+    {
+      "purpose": "January canonical overall conversion",
+      "estimatedBytes": "267844991",
+      "result": {
+        "columns": [
+          {
+            "name": "conversion_rate",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "conversion_rate": 0.009418820746747762
+          }
+        ],
+        "complete": true,
+        "totalRows": "1",
+        "ref": "3aacb6f0-0be1-4efc-ba71-55827be32d1f",
+        "sql": "WITH events AS (SELECT user_pseudo_id, event_name, (SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS session_id FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131'), sessions AS (SELECT user_pseudo_id, session_id, MAX(IF(event_name = 'purchase', 1, 0)) AS purchased FROM events WHERE user_pseudo_id IS NOT NULL AND session_id IS NOT NULL GROUP BY user_pseudo_id, session_id) SELECT SAFE_DIVIDE(SUM(purchased), COUNT(*)) AS conversion_rate FROM sessions",
+        "purpose": "January canonical overall conversion",
+        "jobId": "b71b702f-5692-4dc2-8479-379c121d9359",
+        "bytesProcessed": "267844991",
+        "bytesBilled": "268435456"
+      }
+    },
+    {
+      "purpose": "January canonical sessions",
+      "estimatedBytes": "252281482",
+      "result": {
+        "columns": [
+          {
+            "name": "sessions",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "sessions": 118380
+          }
+        ],
+        "complete": true,
+        "totalRows": "1",
+        "ref": "c42a4199-86fe-4dc9-aa2d-982e87118e50",
+        "sql": "WITH events AS (SELECT user_pseudo_id, (SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS session_id FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131') SELECT COUNT(DISTINCT CONCAT(user_pseudo_id, '.', CAST(session_id AS STRING))) AS sessions FROM events WHERE user_pseudo_id IS NOT NULL AND session_id IS NOT NULL",
+        "purpose": "January canonical sessions",
+        "jobId": "6bdf699a-9de6-4642-b277-da9cfb51ba21",
+        "bytesProcessed": "252281482",
+        "bytesBilled": "252706816"
+      }
+    },
+    {
+      "purpose": "Narrowed January revenue after broad-scan rejection",
+      "estimatedBytes": "15573141",
+      "result": {
+        "columns": [
+          {
+            "name": "revenue",
+            "type": "number"
+          }
+        ],
+        "rows": [
+          {
+            "revenue": 57350
+          }
+        ],
+        "complete": true,
+        "totalRows": "1",
+        "ref": "6fdb3799-319f-4ea5-af61-d1d7bcf32e03",
+        "sql": "SELECT SUM(IF(event_name = 'purchase', COALESCE(ecommerce.purchase_revenue_in_usd, 0), 0)) AS revenue FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20210101' AND '20210131'",
+        "purpose": "Narrowed January revenue after broad-scan rejection",
+        "jobId": "692e6a51-80d0-4ae9-8671-a9668812b91d",
+        "bytesProcessed": "15573141",
+        "bytesBilled": "15728640"
+      }
+    }
+  ],
+  "rejections": [
+    {
+      "sql": "SELECT * FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` LIMIT 1",
+      "estimatedBytes": "3583657854",
+      "cap": "1073741824"
+    }
+  ]
+}
