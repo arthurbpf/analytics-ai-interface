@@ -5,42 +5,77 @@ import { historySchema, sessionSchema, streamEventSchema } from "@analytics/cont
 
 test("API rejects invalid requests before opening a stream", async ({ request }) => {
   const sessionResponse = await request.post("/api/sessions");
-  const raw: unknown = await sessionResponse.json(); const session = sessionSchema.parse(raw);
+  const raw: unknown = await sessionResponse.json();
+  const session = sessionSchema.parse(raw);
   expect(sessionResponse.status()).toBe(201);
-  const invalid = await request.post(`/api/sessions/${session.id}/turns`, { data: { message: "", clientTurnId: randomUUID() } });
-  expect(invalid.status()).toBe(400); expect(invalid.headers()["content-type"]).toContain("application/json");
+  const invalid = await request.post(`/api/sessions/${session.id}/turns`, {
+    data: { message: "", clientTurnId: randomUUID() },
+  });
+  expect(invalid.status()).toBe(400);
+  expect(invalid.headers()["content-type"]).toContain("application/json");
   expect((await request.get(`/api/sessions/${randomUUID()}`)).status()).toBe(404);
-  expect((await request.post(`/api/sessions/${randomUUID()}/turns`, { data: { message: "Hello", clientTurnId: randomUUID() } })).status()).toBe(404);
+  expect(
+    (
+      await request.post(`/api/sessions/${randomUUID()}/turns`, {
+        data: { message: "Hello", clientTurnId: randomUUID() },
+      })
+    ).status(),
+  ).toBe(404);
 });
-test("browser receives a chart before final narrative, aborts, and reloads retained state", async ({ page, request }) => {
-  const raw: unknown = await (await request.post("/api/sessions")).json(); const session = sessionSchema.parse(raw);
+test("browser receives a chart before final narrative, aborts, and reloads retained state", async ({
+  page,
+  request,
+}) => {
+  const raw: unknown = await (await request.post("/api/sessions")).json();
+  const session = sessionSchema.parse(raw);
   await page.goto("/");
   const modulePath = new URL("../fixtures/browser.ts", import.meta.url).pathname;
   const clientTurnId = randomUUID();
-  const rawEvents: unknown = await page.evaluate(async ({ path, sessionId, requestId }) => {
-    const browserModule: unknown = await import(`/@fs${path}`);
-    // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes this callback and its helper together.
-    function isHelper(value: unknown): value is (sessionId: string, requestId: string) => Promise<unknown> { return typeof value === "function"; }
-    // Browser-side import stays outside production UI; narrow its exported function.
-    if (typeof browserModule !== "object" || browserModule === null || !("firstChart" in browserModule) || !isHelper(browserModule.firstChart)) { throw new Error("Missing browser test helper"); }
-    const output: unknown = await browserModule.firstChart(sessionId, requestId);
-    return output;
-  }, { path: modulePath, sessionId: session.id, requestId: clientTurnId });
+  const rawEvents: unknown = await page.evaluate(
+    async ({ path, sessionId, requestId }) => {
+      const browserModule: unknown = await import(`/@fs${path}`);
+      // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes this callback and its helper together.
+      function isHelper(
+        value: unknown,
+      ): value is (sessionId: string, requestId: string) => Promise<unknown> {
+        return typeof value === "function";
+      }
+      // Browser-side import stays outside production UI; narrow its exported function.
+      if (
+        typeof browserModule !== "object" ||
+        browserModule === null ||
+        !("firstChart" in browserModule) ||
+        !isHelper(browserModule.firstChart)
+      ) {
+        throw new Error("Missing browser test helper");
+      }
+      const output: unknown = await browserModule.firstChart(sessionId, requestId);
+      return output;
+    },
+    { path: modulePath, sessionId: session.id, requestId: clientTurnId },
+  );
   const events = z.array(streamEventSchema).parse(rawEvents);
   expect(events.some((event) => event.type === "chart_ready")).toBe(true);
   expect(events.some((event) => event.type === "analysis_ready")).toBe(false);
-  await expect.poll(async () => {
-    const data: unknown = await (await request.get(`/api/sessions/${session.id}`)).json();
-    return historySchema.parse(data).turns[0]?.status;
-  }).toBe("interrupted");
+  await expect
+    .poll(async () => {
+      const data: unknown = await (await request.get(`/api/sessions/${session.id}`)).json();
+      return historySchema.parse(data).turns[0]?.status;
+    })
+    .toBe("interrupted");
   await page.reload();
-  const historyRaw: unknown = await (await request.get(`/api/sessions/${session.id}`)).json(); const history = historySchema.parse(historyRaw);
+  const historyRaw: unknown = await (await request.get(`/api/sessions/${session.id}`)).json();
+  const history = historySchema.parse(historyRaw);
   const chart = history.messages.find((message) => message.content.kind === "chart");
   expect(chart?.content.kind).toBe("chart");
   if (chart?.content.kind === "chart") {
-    const saved = await request.get(`/api/sessions/${session.id}/results/${chart.content.chart.spec.resultRef}`);
+    const saved = await request.get(
+      `/api/sessions/${session.id}/results/${chart.content.chart.spec.resultRef}`,
+    );
     expect(saved.ok()).toBe(true);
   }
-  const retry = await request.post(`/api/sessions/${session.id}/turns`, { data: { message: "Retry", clientTurnId } });
+  const retry = await request.post(`/api/sessions/${session.id}/turns`, {
+    data: { message: "Retry", clientTurnId },
+  });
   expect(retry.status()).toBe(409);
 });

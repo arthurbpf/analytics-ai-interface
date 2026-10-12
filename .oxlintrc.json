@@ -1,13 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "oxc",
-    "unicorn",
-    "import",
-    "react",
-    "jsx-a11y"
-  ],
+  "plugins": ["typescript", "oxc", "unicorn", "import", "react", "jsx-a11y"],
   "categories": {
     "correctness": "error",
     "suspicious": "error"
@@ -20,14 +13,8 @@
     ".direnv/**"
   ],
   "rules": {
-    "eslint/eqeqeq": [
-      "error",
-      "always"
-    ],
-    "eslint/curly": [
-      "error",
-      "all"
-    ],
+    "eslint/eqeqeq": ["error", "always"],
+    "eslint/curly": ["error", "all"],
     "eslint/prefer-const": "error",
     "eslint/no-var": "error",
     "eslint/no-debugger": "error",
@@ -80,9 +67,7 @@
   },
   "overrides": [
     {
-      "files": [
-        "apps/web/src/**/*.{ts,tsx}"
-      ],
+      "files": ["apps/web/src/**/*.{ts,tsx}"],
       "env": {
         "browser": true
       },
@@ -91,18 +76,13 @@
       }
     },
     {
-      "files": [
-        "apps/api/**/*.ts",
-        "apps/web/vite.config.ts"
-      ],
+      "files": ["apps/api/**/*.ts", "apps/web/vite.config.ts"],
       "env": {
         "node": true
       }
     },
     {
-      "files": [
-        "apps/api/**/*.ts"
-      ],
+      "files": ["apps/api/**/*.ts"],
       "rules": {
         "oxc/no-async-endpoint-handlers": "off"
       }

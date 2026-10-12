@@ -28,7 +28,13 @@ describe("SQL access", () => {
   });
   it("checks dry-run statement and resources independently", () => {
     expect(() => checkDryRun({ statementType: "DELETE", tables: [], routines: [] })).toThrow();
-    expect(() => checkDryRun({ statementType: "SELECT", tables: [{ projectId: "other", datasetId: "dataset", tableId: "events_1" }], routines: [] })).toThrow();
+    expect(() =>
+      checkDryRun({
+        statementType: "SELECT",
+        tables: [{ projectId: "other", datasetId: "dataset", tableId: "events_1" }],
+        routines: [],
+      }),
+    ).toThrow();
     expect(() => checkDryRun({ statementType: "SELECT", tables: [], routines: [{}] })).toThrow();
   });
 });

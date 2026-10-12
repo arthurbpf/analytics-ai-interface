@@ -68,12 +68,8 @@
           "name": "messages_sessionId_sessions_id_fk",
           "tableFrom": "messages",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "sessionId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sessionId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -81,12 +77,8 @@
           "name": "messages_turnId_turns_id_fk",
           "tableFrom": "messages",
           "tableTo": "turns",
-          "columnsFrom": [
-            "turnId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["turnId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -178,12 +170,8 @@
           "name": "query_results_sessionId_sessions_id_fk",
           "tableFrom": "query_results",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "sessionId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sessionId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -191,12 +179,8 @@
           "name": "query_results_turnId_turns_id_fk",
           "tableFrom": "query_results",
           "tableTo": "turns",
-          "columnsFrom": [
-            "turnId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["turnId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -341,12 +325,8 @@
           "name": "turns_sessionId_sessions_id_fk",
           "tableFrom": "turns",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "sessionId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sessionId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

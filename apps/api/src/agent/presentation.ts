@@ -1,45 +1,95 @@
 import { ToolError } from "../errors.ts";
 import { randomUUID } from "node:crypto";
-import { analysisSchema, chartSpecSchema, type Analysis, type ChartSpec, type PublishedChart, type QueryResult } from "@analytics/contracts";
+import {
+  analysisSchema,
+  chartSpecSchema,
+  type Analysis,
+  type ChartSpec,
+  type PublishedChart,
+  type QueryResult,
+} from "@analytics/contracts";
 import type { AgentStore } from "../db/store.ts";
 
 export function validateChart(spec: ChartSpec, result: QueryResult): PublishedChart {
   chartSpecSchema.parse(spec);
-  if (result.ref !== spec.resultRef || !result.complete) { throw new ToolError("Chart requires a complete saved result from this session"); }
+  if (result.ref !== spec.resultRef || !result.complete) {
+    throw new ToolError("Chart requires a complete saved result from this session");
+  }
   const column = (name: string) => {
     const found = result.columns.find((field) => field.name === name);
-    if (!found) { throw new ToolError(`Unknown result column: ${name}`); }
+    if (!found) {
+      throw new ToolError(`Unknown result column: ${name}`);
+    }
     return found;
   };
   const numeric = (name: string) => {
-    if (column(name).type !== "number" || result.rows.some((row) => row[name] !== null && typeof row[name] !== "number")) {
-      throw new ToolError(`Chart requires safe numeric values in ${name}; aggregate or cast appropriately.`);
+    if (
+      column(name).type !== "number" ||
+      result.rows.some((row) => row[name] !== null && typeof row[name] !== "number")
+    ) {
+      throw new ToolError(
+        `Chart requires safe numeric values in ${name}; aggregate or cast appropriately.`,
+      );
     }
   };
   switch (spec.type) {
-    case "table": spec.columns.forEach(column); break;
+    case "table":
+      spec.columns.forEach(column);
+      break;
     case "kpi":
       numeric(spec.column);
-      if (typeof result.rows[spec.row]?.[spec.column] !== "number") { throw new ToolError("KPI requires an existing numeric cell"); }
+      if (typeof result.rows[spec.row]?.[spec.column] !== "number") {
+        throw new ToolError("KPI requires an existing numeric cell");
+      }
       break;
-    case "bar": case "line": case "stacked_bar":
-      column(spec.x); numeric(spec.y);
-      if (spec.type === "line" && !["date", "number", "string"].includes(column(spec.x).type)) { throw new ToolError("Line axis must be a date, number, or ordered string"); }
-      if (spec.type === "stacked_bar" && !["string", "boolean"].includes(column(spec.series).type)) { throw new ToolError("Stacked bars require a categorical series column"); }
+    case "bar":
+    case "line":
+    case "stacked_bar":
+      column(spec.x);
+      numeric(spec.y);
+      if (spec.type === "line" && !["date", "number", "string"].includes(column(spec.x).type)) {
+        throw new ToolError("Line axis must be a date, number, or ordered string");
+      }
+      if (
+        spec.type === "stacked_bar" &&
+        !["string", "boolean"].includes(column(spec.series).type)
+      ) {
+        throw new ToolError("Stacked bars require a categorical series column");
+      }
       break;
   }
-  return { id: randomUUID(), spec, data: { columns: result.columns, rows: result.rows, complete: result.complete, totalRows: result.totalRows } };
+  return {
+    id: randomUUID(),
+    spec,
+    data: {
+      columns: result.columns,
+      rows: result.rows,
+      complete: result.complete,
+      totalRows: result.totalRows,
+    },
+  };
 }
-export async function validateAnalysis(value: unknown, sessionId: string, store: AgentStore, charts: PublishedChart[]): Promise<Analysis> {
+export async function validateAnalysis(
+  value: unknown,
+  sessionId: string,
+  store: AgentStore,
+  charts: PublishedChart[],
+): Promise<Analysis> {
   const analysis = analysisSchema.parse(value);
   for (const ref of analysis.resultRefs) {
     const result = await store.result(sessionId, ref);
-    if (!result.complete) { throw new ToolError("Final evidence must reference complete query results"); }
+    if (!result.complete) {
+      throw new ToolError("Final evidence must reference complete query results");
+    }
   }
   for (const chartId of analysis.chartIds) {
     const chart = charts.find((candidate) => candidate.id === chartId);
-    if (!chart) { throw new ToolError("Final answer references an unpublished chart"); }
-    if (!analysis.resultRefs.includes(chart.spec.resultRef)) { throw new ToolError("Chart result must be included in final evidence references"); }
+    if (!chart) {
+      throw new ToolError("Final answer references an unpublished chart");
+    }
+    if (!analysis.resultRefs.includes(chart.spec.resultRef)) {
+      throw new ToolError("Chart result must be included in final evidence references");
+    }
   }
   return analysis;
 }
