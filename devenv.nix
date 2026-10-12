@@ -17,6 +17,14 @@
     ];
   };
 
+  git-hooks.hooks.conventional-commits = {
+    enable = true;
+    name = "Check Conventional Commits";
+    package = pkgs.commitizen;
+    entry = "${pkgs.commitizen}/bin/cz check --commit-msg-file";
+    stages = [ "commit-msg" ];
+  };
+
   git-hooks.hooks.format = {
     enable = true;
     name = "Check formatting";
