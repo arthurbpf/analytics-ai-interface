@@ -70,6 +70,16 @@ it("keeps two streams, drafts and completions isolated while navigating; Stop af
     const id = input.params.id;
     const turn = id === sessionId ? turnId : otherTurn;
     yield { type: "turn_started", turnId: turn };
+    yield {
+      type: "activity",
+      turnId: turn,
+      activity: { id: "0:0", stage: "querying", message: id, status: "preparing" },
+    };
+    yield {
+      type: "activity",
+      turnId: turn,
+      activity: { id: "0:0", stage: "querying", message: id, status: "running" },
+    };
     yield { type: "chart_ready", turnId: turn, chart: chart() };
     yield { type: "analysis_started", turnId: turn, draftId };
     yield { type: "analysis_delta", turnId: turn, draftId, delta: id };
@@ -87,6 +97,12 @@ it("keeps two streams, drafts and completions isolated while navigating; Stop af
     expect(controller.getSnapshot().responses[otherId]?.draft?.text).toBe(otherId),
   );
   expect(api.turn).toHaveBeenCalledTimes(2);
+  expect(response(controller)?.activities).toEqual([
+    { id: "0:0", stage: "querying", message: sessionId, status: "running" },
+  ]);
+  expect(controller.getSnapshot().responses[otherId]?.activities).toEqual([
+    { id: "0:0", stage: "querying", message: otherId, status: "running" },
+  ]);
   controller.select(sessionId);
   await vi.waitFor(() => expect(controller.getSnapshot().loading).toBe(false));
   controller.stop();
@@ -184,6 +200,31 @@ it("retains published artifacts and clears drafts when history reload fails", as
     controller.getSnapshot().histories[sessionId]?.messages.map((message) => message.content.kind),
   ).toEqual(["user", "chart"]);
   expect(controller.getSnapshot().error).toContain("before completion");
+});
+
+it("clears live activity on a disconnected stream before history reload finishes", async () => {
+  const { controller, api, saved } = await setup();
+  const gate = Promise.withResolvers<void>();
+  api.history = vi.fn(async () => {
+    await gate.promise;
+    return saved;
+  });
+  api.turn = vi.fn(async function* (): AsyncGenerator<StreamEvent> {
+    yield { type: "turn_started", turnId };
+    yield {
+      type: "activity",
+      turnId,
+      activity: { id: "0:0", stage: "querying", message: "Preparing a query", status: "preparing" },
+    };
+  });
+  controller.send("Revenue");
+  try {
+    await vi.waitFor(() => expect(response(controller)?.finished).toBe(true));
+    expect(response(controller)?.activities).toEqual([]);
+  } finally {
+    gate.resolve();
+  }
+  await vi.waitFor(() => completed(controller));
 });
 it("does not let an earlier reload replace completed history", async () => {
   const { controller, api, saved } = await setup();

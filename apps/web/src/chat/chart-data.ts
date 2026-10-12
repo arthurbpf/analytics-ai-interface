@@ -1,23 +1,21 @@
-import type { ChartSpec, ResultData } from "@analytics/contracts";
-
-const numbers = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
-export function formatCell(value: unknown): string {
-  if (value === null || value === undefined) {
-    return "—";
-  }
-  if (typeof value === "number") {
-    return numbers.format(value);
-  }
-  return typeof value === "string" || typeof value === "boolean" ? String(value) : "—";
-}
+import { columnLabel, type ChartSpec, type ResultData } from "@analytics/contracts";
+import { formatCell } from "./display.ts";
 export function plotData(
   spec: Extract<ChartSpec, { type: "bar" | "line" | "stacked_bar" }>,
   data: ResultData,
 ) {
   if (spec.type !== "stacked_bar") {
     return {
-      rows: data.rows.map((row) => ({ x: formatCell(row[spec.x]), s0: row[spec.y] ?? null })),
-      series: [{ key: "s0", label: spec.y }],
+      rows: data.rows.map((row) => ({ x: row[spec.x] ?? null, s0: row[spec.y] ?? null })),
+      series: [
+        {
+          key: "s0",
+          label: columnLabel(
+            spec.y,
+            data.columns.find((column) => column.name === spec.y)?.display,
+          ),
+        },
+      ],
       duplicate: false,
     };
   }
@@ -41,7 +39,7 @@ export function plotData(
     const groupKey = JSON.stringify(x);
     let entry = groups.get(groupKey);
     if (!entry) {
-      entry = { x: formatCell(x) };
+      entry = { x };
       for (const item of series) {
         entry[item.key] = null;
       }

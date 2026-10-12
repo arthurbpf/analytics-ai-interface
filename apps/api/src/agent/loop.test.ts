@@ -83,7 +83,7 @@ it("returns malformed and unknown tool errors for correction, then succeeds", as
   );
 });
 it("repairs a prohibited SQL query without executing it", async () => {
-  const { deps, emit } = setup();
+  const { deps, emit, events } = setup();
   const normal = fixtureModel();
   let calls = 0;
   deps.warehouse.execute = vi.fn(deps.warehouse.execute);
@@ -104,6 +104,90 @@ it("repairs a prohibited SQL query without executing it", async () => {
     "completed",
   );
   expect(deps.warehouse.execute).toHaveBeenCalledTimes(1);
+  expect(
+    events.find(
+      (event) =>
+        event.type === "activity" &&
+        event.activity.id === "0:0" &&
+        event.activity.status === "failed",
+    ),
+  ).toBeDefined();
+  expect(
+    events.find(
+      (event) =>
+        event.type === "activity" &&
+        event.activity.id === "1:0" &&
+        event.activity.status === "completed",
+    ),
+  ).toBeDefined();
+});
+
+it("publishes deduplicated preparation before model completion and query execution", async () => {
+  const { deps, events, emit } = setup();
+  const normal = fixtureModel();
+  let first = true;
+  deps.warehouse.execute = vi.fn(deps.warehouse.execute);
+  deps.model = {
+    complete: async (system, messages, tools, signal, update) => {
+      if (first) {
+        first = false;
+        await update?.({ index: 0, name: "run_", arguments: "" });
+        await update?.({ index: 0, name: "run_sql", arguments: "{" });
+        await update?.({ index: 0, name: "run_sql", arguments: '{"sql":' });
+        expect(events.filter((event) => event.type === "activity")).toEqual([
+          {
+            type: "activity",
+            turnId,
+            activity: {
+              id: "0:0",
+              stage: "querying",
+              message: "Preparing a custom query",
+              status: "preparing",
+            },
+          },
+        ]);
+        expect(deps.warehouse.execute).not.toHaveBeenCalled();
+      }
+      return normal.complete(system, messages, tools, signal);
+    },
+  };
+  expect((await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).status).toBe(
+    "completed",
+  );
+  expect(
+    events
+      .filter((event) => event.type === "activity" && event.activity.id === "0:0")
+      .map((event) => (event.type === "activity" ? event.activity.status : null)),
+  ).toEqual(["preparing", "running", "completed"]);
+});
+
+it("does not execute a prepared tool when the turn is cancelled", async () => {
+  const { deps, events, emit } = setup();
+  const controller = new AbortController();
+  deps.warehouse.execute = vi.fn(deps.warehouse.execute);
+  deps.model = {
+    complete: async (_system, _messages, _tools, signal, update) => {
+      await update?.({
+        index: 0,
+        name: "run_metric",
+        arguments: JSON.stringify({
+          metric: "revenue",
+          startDate: "2020-11-01",
+          endDate: "2020-11-30",
+        }),
+      });
+      controller.abort();
+      signal.throwIfAborted();
+      return call("run_metric", {});
+    },
+  };
+  expect((await runAgent(deps, sessionId, turnId, controller.signal, emit)).status).toBe(
+    "interrupted",
+  );
+  expect(events.find((event) => event.type === "activity")).toMatchObject({
+    activity: { message: "Preparing query for Recorded revenue", status: "preparing" },
+  });
+  expect(deps.warehouse.execute).not.toHaveBeenCalled();
 });
 it("repairs a chart mapping without streaming an invalid chart", async () => {
   const { deps, emit, events } = setup();

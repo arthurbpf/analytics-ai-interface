@@ -117,7 +117,7 @@ for (const [prompt, type] of [
     await expect(page.getByTestId("narrative-draft")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
     if (type === "table") {
-      await expect(page.getByRole("columnheader", { name: "device", exact: true })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: "Device", exact: true })).toBeVisible();
     }
     if (type === "kpi") {
       await expect(page.getByTestId("chart-kpi")).toContainText("12");
@@ -217,4 +217,31 @@ test("clarification completes once, clears its draft, reloads and permits a foll
   await composer.press("Enter");
   await expect(page.getByText(narrative, { exact: true })).toBeVisible();
   await expect(question).toHaveCount(1);
+});
+
+test("shows activity before query execution and formats persisted revenue charts", async ({
+  page,
+}) => {
+  await page.getByLabel("Ask an analytics question").fill("Format revenue with early activity");
+  await page.getByRole("button", { name: "Send question" }).click();
+  const activity = page.getByRole("list", { name: "Analysis activity" });
+  await expect(activity.locator('[data-status="preparing"]')).toContainText(
+    "Preparing a custom query",
+  );
+  await expect(page.getByTestId("chart-bar")).toHaveCount(0);
+  const chart = page.getByTestId("chart-bar");
+  await expect(chart).toBeVisible();
+  await expect(
+    page.getByText("Desktop recorded $1,234.56 in revenue.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByTestId("agent-activity")).toHaveCount(0);
+  await expect(chart.getByRole("application")).toContainText("$");
+  await chart.getByText("View chart data", { exact: true }).click();
+  await expect(chart.getByRole("columnheader", { name: "Recorded revenue" })).toBeVisible();
+  await expect(chart.getByRole("cell", { name: "$1,234.56" })).toBeVisible();
+  await page.reload();
+  await expect(chart).toBeVisible();
+  await chart.getByText("View chart data", { exact: true }).click();
+  await expect(chart.getByRole("cell", { name: "$1,234.56" })).toBeVisible();
+  await expect(page.getByTestId("agent-activity")).toHaveCount(0);
 });

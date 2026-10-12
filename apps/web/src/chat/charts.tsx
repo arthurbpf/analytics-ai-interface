@@ -1,6 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
-import type { PublishedChart, ResultData } from "@analytics/contracts";
+import { columnLabel, type PublishedChart, type ResultData } from "@analytics/contracts";
 import {
   ChartContainer,
   ChartLegend,
@@ -18,7 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCell, plotData } from "./chart-data.ts";
+import { plotData } from "./chart-data.ts";
+import { formatCell } from "./display.ts";
 
 function ResultTable({
   data,
@@ -27,12 +28,18 @@ function ResultTable({
   data: ResultData;
   columns?: string[];
 }) {
+  const fields = columns.map((name) => data.columns.find((column) => column.name === name));
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          {columns.map((column) => (
-            <TableHead key={column}>{column}</TableHead>
+          {columns.map((column, index) => (
+            <TableHead
+              key={column}
+              className={fields[index]?.type === "number" ? "text-right" : undefined}
+            >
+              {columnLabel(column, fields[index]?.display)}
+            </TableHead>
           ))}
         </TableRow>
       </TableHeader>
@@ -40,8 +47,15 @@ function ResultTable({
         {data.rows.map((row, index) => (
           // oxlint-disable-next-line react/no-array-index-key -- Identical saved rows have no unique identity; ordinals preserve their order.
           <TableRow key={`${index}-${JSON.stringify(row)}`}>
-            {columns.map((column) => (
-              <TableCell key={column}>{formatCell(row[column])}</TableCell>
+            {columns.map((column, columnIndex) => (
+              <TableCell
+                key={column}
+                className={
+                  fields[columnIndex]?.type === "number" ? "text-right tabular-nums" : undefined
+                }
+              >
+                {formatCell(row[column], fields[columnIndex])}
+              </TableCell>
             ))}
           </TableRow>
         ))}
@@ -58,10 +72,13 @@ function Visualization({ chart }: { chart: PublishedChart }) {
     return <p className="text-muted-foreground text-sm">No data for this visualization.</p>;
   }
   if (spec.type === "kpi") {
+    const column = data.columns.find((field) => field.name === spec.column);
     return (
       <p className="text-4xl tracking-tight tabular-nums">
-        {formatCell(data.rows[spec.row]?.[spec.column])}
-        <span className="mt-2 block text-xs text-muted-foreground">{spec.column}</span>
+        {formatCell(data.rows[spec.row]?.[spec.column], column)}
+        <span className="mt-2 block text-xs text-muted-foreground">
+          {columnLabel(spec.column, column?.display)}
+        </span>
       </p>
     );
   }
@@ -82,12 +99,32 @@ function Visualization({ chart }: { chart: PublishedChart }) {
       { label: item.label, color: `var(--chart-${(index % 5) + 1})` },
     ]),
   );
+  const xColumn = data.columns.find((column) => column.name === spec.x);
+  const yColumn = data.columns.find((column) => column.name === spec.y);
   const axes = (
     <>
       <CartesianGrid vertical={false} />
-      <XAxis dataKey="x" tickLine={false} axisLine={false} minTickGap={24} />
-      <YAxis width={64} tickLine={false} axisLine={false} />
-      <ChartTooltip content={<ChartTooltipContent />} />
+      <XAxis
+        dataKey="x"
+        tickLine={false}
+        axisLine={false}
+        minTickGap={24}
+        tickFormatter={(value: unknown) => formatCell(value, xColumn, true)}
+      />
+      <YAxis
+        width={80}
+        tickLine={false}
+        axisLine={false}
+        tickFormatter={(value: unknown) => formatCell(value, yColumn, true)}
+      />
+      <ChartTooltip
+        content={
+          <ChartTooltipContent
+            valueFormatter={(value) => formatCell(value, yColumn)}
+            labelFormatter={(value) => formatCell(value, xColumn)}
+          />
+        }
+      />
     </>
   );
   return (

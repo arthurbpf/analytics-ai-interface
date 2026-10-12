@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { chart } from "./test-fixtures.ts";
-import { formatCell, plotData } from "./chart-data.ts";
+import { plotData } from "./chart-data.ts";
+import { formatCell } from "./display.ts";
 it("preserves null, zero, negative values and saved row order", () => {
   const value = chart("line");
   if (value.spec.type !== "line") {
@@ -44,4 +45,19 @@ it("formats dates without shifting timezone and distinguishes missing from zero"
   expect(formatCell(null)).toBe("—");
   expect(formatCell(0)).toBe("0");
   expect(formatCell(false)).toBe("false");
+});
+
+it("keeps distinct numeric categories distinct when display rounding would match", () => {
+  const value = chart("stacked_bar");
+  if (value.spec.type !== "stacked_bar") {
+    throw new Error("Expected stacked bar");
+  }
+  value.data.rows = [
+    { device: 1.231, source: "direct", purchases: 1 },
+    { device: 1.234, source: "direct", purchases: 2 },
+  ];
+  expect(plotData(value.spec, value.data).rows).toEqual([
+    { x: 1.231, s0: 1 },
+    { x: 1.234, s0: 2 },
+  ]);
 });

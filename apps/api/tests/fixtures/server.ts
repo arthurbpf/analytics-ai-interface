@@ -1,14 +1,46 @@
 import { setTimeout } from "node:timers/promises";
 import { randomUUID } from "node:crypto";
-import { analysisSchema, chartSpecSchema, type ChartSpec } from "@analytics/contracts";
+import { z } from "zod";
+import {
+  analysisSchema,
+  chartSpecSchema,
+  type ChartSpec,
+  queryResultSchema,
+} from "@analytics/contracts";
 import { createApp } from "../../src/app.ts";
 import type { ModelClient } from "../../src/llm/openrouter.ts";
 import { testStore } from "./database.ts";
-import { call, fixtureModel, fixtureWarehouse } from "./analysis.ts";
+import { call, fixtureModel, fixtureWarehouse, sql } from "./analysis.ts";
 
 const store = await testStore();
 await store.recover();
 const scripted = fixtureModel();
+const revenueSql = sql.replace(
+  "COUNT(*) AS purchases",
+  "SUM(ecommerce.purchase_revenue_in_usd) AS amount_usd",
+);
+const warehouse = fixtureWarehouse();
+const execute = warehouse.execute;
+warehouse.execute = async (...args) => {
+  const output = await execute(...args);
+  return args[0] === revenueSql
+    ? {
+        ...output,
+        data: {
+          columns: [
+            { name: "device", type: "string" },
+            { name: "amount_usd", type: "number" },
+          ],
+          rows: [
+            { device: "desktop", amount_usd: 1234.56 },
+            { device: "mobile", amount_usd: 300 },
+          ],
+          complete: true,
+          totalRows: "2",
+        },
+      }
+    : output;
+};
 const model: ModelClient = {
   complete: async (system, messages, tools, signal, update) => {
     let prompt = "";
@@ -16,6 +48,43 @@ const model: ModelClient = {
       if (message.role === "user") {
         prompt = message.content;
       }
+    }
+    if (prompt === "Format revenue with early activity") {
+      const last = messages.at(-1);
+      if (last?.role !== "tool") {
+        await update?.({ index: 0, name: "run_sql", arguments: "{" });
+        await setTimeout(2000, undefined, { signal });
+        return call("run_sql", {
+          sql: revenueSql,
+          purpose: "Recorded revenue by device",
+          justification: "Fixture display metadata",
+          display: { amount_usd: { label: "Recorded revenue", format: "usd" } },
+        });
+      }
+      const raw: unknown = JSON.parse(last.content);
+      const query = queryResultSchema.safeParse(raw);
+      if (query.success) {
+        return call("publish_chart", {
+          type: "bar",
+          title: "Revenue by device",
+          resultRef: query.data.ref,
+          x: "device",
+          y: "amount_usd",
+        });
+      }
+      const chart = z.object({ chartId: z.uuid(), resultRef: z.uuid() }).parse(raw);
+      const response = call("present_analysis", {
+        narrative: "Desktop recorded $1,234.56 in revenue.",
+        caveats: [],
+        resultRefs: [chart.resultRef],
+        chartIds: [chart.chartId],
+      });
+      const presentation = response.message.toolCalls[0];
+      if (!presentation) {
+        throw new Error("Missing revenue presentation");
+      }
+      await update?.({ index: 0, name: presentation.name, arguments: presentation.arguments });
+      return response;
     }
     if (prompt === "Clarify customer frequency") {
       await update?.({
@@ -120,7 +189,7 @@ const backend = createApp({
     }),
   },
   model,
-  warehouse: fixtureWarehouse(),
+  warehouse,
   queryBytes: 100n,
   turnBytes: 500n,
 });

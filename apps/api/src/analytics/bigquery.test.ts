@@ -4,6 +4,112 @@ import { limits } from "../config.ts";
 import { BigQueryWarehouse, boundResult, runQuery } from "./bigquery.ts";
 import { QueryBudget } from "./budget.ts";
 import { fixtureWarehouse, sql } from "../../tests/fixtures/analysis.ts";
+import { buildMetric } from "./catalog.ts";
+
+it("attaches declared custom formats without guessing units from aliases", async () => {
+  const input = {
+    sql,
+    purpose: "Device",
+    display: { purchases: { label: "Purchase events", format: "integer" } },
+  } as const;
+  const result = await runQuery(
+    fixtureWarehouse(),
+    new QueryBudget(100n, 500n, 5),
+    input,
+    new AbortController().signal,
+  );
+  expect(result.columns).toEqual([
+    { name: "device", type: "string" },
+    { name: "purchases", type: "number", display: input.display.purchases },
+  ]);
+  expect(result.rows[0]).toEqual({ device: "desktop", purchases: 12 });
+});
+
+it.each([{ missing: { label: "Missing" } }, { device: { format: "usd" } }] as const)(
+  "rejects unknown columns and incompatible display units: %j",
+  async (display) => {
+    await expect(
+      runQuery(
+        fixtureWarehouse(),
+        new QueryBudget(100n, 500n, 5),
+        { sql, purpose: "Device", display },
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow(/result column|numeric column/);
+  },
+);
+
+it("attaches catalog units and readable quality counts before saving results", async () => {
+  const warehouse = fixtureWarehouse();
+  warehouse.execute = async () => ({
+    jobId: "revenue-job",
+    bytesProcessed: "10",
+    bytesBilled: "10",
+    data: {
+      columns: [
+        { name: "revenue", type: "number" },
+        { name: "missing_revenue_events", type: "number" },
+        { name: "_group_count", type: "number" },
+        { name: "_present", type: "number" },
+      ],
+      rows: [
+        {
+          revenue: 1234.56,
+          missing_revenue_events: 1234,
+          _group_count: 1,
+          _present: 1,
+          _quality_missing_revenue_events: 1234,
+        },
+      ],
+      complete: true,
+      totalRows: "1",
+    },
+  });
+  const catalog = buildMetric({
+    metric: "revenue",
+    startDate: "2020-11-01",
+    endDate: "2020-11-30",
+  });
+  const result = await runQuery(
+    warehouse,
+    new QueryBudget(100n, 500n, 5),
+    { sql: catalog.sql, purpose: "Revenue", catalog },
+    new AbortController().signal,
+  );
+  expect(result.columns[0]?.display).toEqual({ label: "Recorded revenue", format: "usd" });
+  expect(result.columns[1]?.display).toEqual({
+    label: "Missing revenue events",
+    format: "integer",
+  });
+  expect(result.requiredCaveats.join(" ")).toContain("Missing revenue events: 1,234");
+});
+
+it("keeps the serialized result cap after adding column metadata", async () => {
+  const warehouse = fixtureWarehouse();
+  warehouse.execute = async () => ({
+    jobId: "large-result",
+    bytesProcessed: "10",
+    bytesBilled: "10",
+    data: boundResult(
+      [{ name: "text", type: "STRING" }],
+      [{ text: "x".repeat(limits.resultBytes - 130) }],
+      "1",
+    ),
+  });
+  const result = await runQuery(
+    warehouse,
+    new QueryBudget(100n, 500n, 5),
+    {
+      sql,
+      purpose: "Large result",
+      display: { text: { label: "x".repeat(200) } },
+    },
+    new AbortController().signal,
+  );
+  expect(result.complete).toBe(false);
+  expect(result.rows).toHaveLength(0);
+  expect(result.totalRows).toBe("1");
+});
 
 it("accepts dry-run metadata with a job reference but no job ID", async () => {
   const job = new BigQuery().job("dry-run");

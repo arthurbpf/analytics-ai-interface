@@ -41,10 +41,18 @@ it("persists ordered messages, query rows, charts and answer across connection r
     kind: "model",
     message: { role: "tool", toolCallId: "call-1", content: "Internal result" },
   });
-  await store.saveResult(s.id, turn.id, result);
+  const formattedResult = {
+    ...result,
+    columns: result.columns.map((column) =>
+      column.name === "purchases"
+        ? { ...column, display: { label: "Purchase events", format: "integer" as const } }
+        : column,
+    ),
+  };
+  await store.saveResult(s.id, turn.id, formattedResult);
   const chart = validateChart(
     { type: "bar", title: "Device", resultRef: result.ref, x: "device", y: "purchases" },
-    result,
+    formattedResult,
   );
   await store.append(s.id, turn.id, { kind: "chart", chart });
   const analysis = {
@@ -67,7 +75,7 @@ it("persists ordered messages, query rows, charts and answer across connection r
       "chart",
       "analysis",
     ]);
-    expect(await reopened.result(s.id, result.ref)).toEqual(result);
+    expect(await reopened.result(s.id, result.ref)).toEqual(formattedResult);
     expect(history.messages[1]?.content).toEqual({ kind: "chart", chart });
   } finally {
     await reopened.pool.end();

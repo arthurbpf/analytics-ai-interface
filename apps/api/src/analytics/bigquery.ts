@@ -6,8 +6,10 @@ import {
   type QueryResult,
   type ResultData,
   type QueryParameters,
+  type ColumnDisplay,
+  columnLabel,
 } from "@analytics/contracts";
-import type { BuiltMetric } from "./catalog.ts";
+import { catalogColumnDisplay, type BuiltMetric } from "./catalog.ts";
 import { ToolError } from "../errors.ts";
 import { limits } from "../config.ts";
 import type { QueryBudget } from "./budget.ts";
@@ -56,6 +58,9 @@ export interface Warehouse {
 }
 const rawRowsSchema = z.array(z.record(z.string(), z.unknown()));
 const wrappedValue = z.object({ value: z.string() });
+function fitsResult(data: ResultData): boolean {
+  return Buffer.byteLength(JSON.stringify(data)) <= limits.resultBytes;
+}
 function normalize(value: unknown): string | number | boolean | null {
   if (value === null || value === undefined) {
     return null;
@@ -106,9 +111,7 @@ export function boundResult(
       row[column.name] = normalize(raw[column.name]);
     }
     rows.push(row);
-    if (
-      Buffer.byteLength(JSON.stringify({ columns, rows, complete, totalRows })) > limits.resultBytes
-    ) {
+    if (!fitsResult({ columns, rows, complete, totalRows })) {
       rows.pop();
       complete = false;
       break;
@@ -222,7 +225,13 @@ export class BigQueryWarehouse implements Warehouse {
 export async function runQuery(
   warehouse: Warehouse,
   budget: QueryBudget,
-  input: { sql: string; purpose: string; justification?: string; catalog?: BuiltMetric },
+  input: {
+    sql: string;
+    purpose: string;
+    justification?: string;
+    catalog?: BuiltMetric;
+    display?: Record<string, ColumnDisplay> | undefined;
+  },
   signal: AbortSignal,
   perQueryCap?: bigint,
 ): Promise<QueryResult> {
@@ -318,14 +327,45 @@ export async function runQuery(
       };
       if (Object.keys(dataQuality).length) {
         requiredCaveats.push(
-          `Data-quality counts across the full requested breakdown before ranking: ${JSON.stringify(dataQuality)}.`,
+          `Data-quality counts across the full requested breakdown before ranking: ${Object.entries(
+            dataQuality,
+          )
+            .map(
+              ([name, value]) =>
+                `${columnLabel(name, catalogColumnDisplay(name))}: ${value === null ? "unavailable" : typeof value === "number" ? value.toLocaleString("en-US") : value}`,
+            )
+            .join("; ")}.`,
         );
       }
       if (scope.topN) {
         requiredCaveats.push(
-          `Returned ${returnedCount} of ${groupCount} groups; omitted ${groupCount - returnedCount}.`,
+          `Returned ${returnedCount.toLocaleString("en-US")} of ${groupCount.toLocaleString("en-US")} groups; omitted ${(groupCount - returnedCount).toLocaleString("en-US")}.`,
         );
       }
+    }
+  }
+  for (const [name, display] of Object.entries(input.display ?? {})) {
+    const column = data.columns.find((item) => item.name === name);
+    if (!column) {
+      throw new ToolError(`Display metadata references unknown result column: ${name}`);
+    }
+    if (display.format && column.type !== "number") {
+      throw new ToolError(`Numeric display format requires a numeric column: ${name}`);
+    }
+  }
+  data = {
+    ...data,
+    columns: data.columns.map((column) => {
+      const display = input.catalog
+        ? catalogColumnDisplay(column.name)
+        : input.display?.[column.name];
+      return display ? { ...column, display } : column;
+    }),
+  };
+  if (!fitsResult(data)) {
+    data = { ...data, rows: [...data.rows], complete: false };
+    while (data.rows.length && !fitsResult(data)) {
+      data.rows.pop();
     }
   }
   return queryResultSchema.parse({

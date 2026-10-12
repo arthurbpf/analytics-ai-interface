@@ -33,6 +33,7 @@ import { ChatController } from "./controller.ts";
 import { ChartView } from "./charts.tsx";
 import { Markdown } from "./markdown.tsx";
 import { storageKey } from "./storage.ts";
+import { ActivityList } from "./activity.tsx";
 
 function ClarificationView({ clarification }: { clarification: Clarification }) {
   return (
@@ -399,6 +400,9 @@ export function ChatPage() {
                       {active.text}
                     </div>
                   )}
+                  {!active.finished && (
+                    <ActivityList activities={active.activities} progress={active.progress} />
+                  )}
                   {active.charts
                     .filter(
                       (chart) =>
@@ -430,9 +434,6 @@ export function ChatPage() {
                       (message) =>
                         message.turnId === active.turnId && message.content.kind === "analysis",
                     ) && <AnalysisView analysis={active.analysis} />}
-                  <output aria-live="polite" className="text-xs text-muted-foreground">
-                    {active.progress}…
-                  </output>
                 </div>
               )}
               {!active &&

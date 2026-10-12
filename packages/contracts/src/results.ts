@@ -2,9 +2,22 @@ import { z } from "zod";
 import { metricRequestSchema, resultScopeSchema, queryParametersSchema } from "./metrics.ts";
 
 export const scalarSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]);
+export const columnDisplaySchema = z.object({
+  label: z.string().trim().min(1).max(200).optional(),
+  format: z.enum(["integer", "decimal", "usd", "percentage", "seconds"]).optional(),
+});
+export type ColumnDisplay = z.infer<typeof columnDisplaySchema>;
+export function columnLabel(name: string, display?: ColumnDisplay): string {
+  if (display?.label) {
+    return display.label;
+  }
+  const words = name.replaceAll("_", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 export const columnSchema = z.object({
   name: z.string().min(1),
   type: z.enum(["number", "string", "boolean", "date"]),
+  display: columnDisplaySchema.optional(),
 });
 // Counts and byte sizes use decimal strings to preserve integer precision in JSON.
 export const resultDataSchema = z.object({

@@ -7,6 +7,7 @@ import {
   type PublishedChart,
   type SessionHistory,
   type StreamEvent,
+  type Activity,
 } from "@analytics/contracts";
 import { ApiFailure, chatApi, type ChatApi } from "./api.ts";
 import { emptyIndex, readIndex, remember, writeIndex, type SessionIndex } from "./storage.ts";
@@ -23,6 +24,7 @@ type ActiveResponse = {
   clarification: Clarification | null;
   draft: { id: string; text: string } | null;
   progress: string;
+  activities: Activity[];
   finished: boolean;
 };
 export interface ChatState {
@@ -308,6 +310,7 @@ export class ChatController {
       clarification: null,
       draft: null,
       progress: "Starting analysis",
+      activities: [],
       finished: false,
     };
     this.update({
@@ -339,6 +342,17 @@ export class ChatController {
       case "progress":
         active.progress = event.message;
         break;
+      case "activity": {
+        const index = active.activities.findIndex((item) => item.id === event.activity.id);
+        active.activities =
+          index < 0
+            ? [...active.activities, event.activity]
+            : active.activities.map((item, position) =>
+                position === index ? event.activity : item,
+              );
+        active.progress = `${event.activity.message} — ${event.activity.status}`;
+        break;
+      }
       case "chart_ready":
         if (!active.charts.some((chart) => chart.id === event.chart.id)) {
           active.charts.push(event.chart);
@@ -371,6 +385,7 @@ export class ChatController {
         break;
       case "turn_finished":
         active.finished = true;
+        active.activities = [];
         active.draft = null;
         if (event.error && this.state.selected === active.sessionId) {
           this.update({ error: event.error.message });
@@ -487,8 +502,13 @@ export class ChatController {
     } finally {
       active.controller.abort();
       active.draft = null;
+      active.finished = true;
+      active.activities = [];
       if (!this.disposed && epoch === this.epoch) {
         if (active.sessionId) {
+          this.update({
+            responses: { ...this.state.responses, [active.sessionId]: { ...active } },
+          });
           try {
             await this.load(active.sessionId, epoch);
           } catch (error) {

@@ -8,6 +8,7 @@ import type {
   StreamEvent,
   TerminalStatus,
   MessageContent,
+  Activity,
 } from "@analytics/contracts";
 import { limits } from "../config.ts";
 import { ToolError } from "../errors.ts";
@@ -17,10 +18,21 @@ import type { ModelClient } from "../llm/openrouter.ts";
 import { QueryBudget } from "../analytics/budget.ts";
 import { runQuery, type Warehouse } from "../analytics/bigquery.ts";
 import { schemaGuidance } from "../analytics/definitions.ts";
-import { catalog, buildMetric } from "../analytics/catalog.ts";
+import { catalog, buildMetric, metricLabel } from "../analytics/catalog.ts";
 import { buildContext } from "./context.ts";
 import { validateAnalysis, validateChart } from "./presentation.ts";
 import { toolDefinitions, toolSchemas } from "./tools.ts";
+
+const toolActivities = new Map<string, Pick<Activity, "stage" | "message">>([
+  ["get_schema", { stage: "thinking", message: "Checking available data" }],
+  ["get_metrics", { stage: "thinking", message: "Checking metric definitions" }],
+  ["run_metric", { stage: "querying", message: "Preparing a metric query" }],
+  ["run_sql", { stage: "querying", message: "Preparing a custom query" }],
+  ["get_result", { stage: "thinking", message: "Retrieving saved data" }],
+  ["publish_chart", { stage: "charting", message: "Preparing a visualization" }],
+  ["present_analysis", { stage: "composing", message: "Writing the answer" }],
+  ["request_clarification", { stage: "composing", message: "Preparing clarification questions" }],
+]);
 
 export interface AgentDependencies {
   store: AgentStore;
@@ -183,7 +195,7 @@ export async function runAgent(
         finalOnly ? "composing" : "thinking",
         finalOnly ? "Composing the final analysis" : "Planning the next analysis step",
       );
-      const system = `You analyze the GA4 ecommerce sample through tools. Use get_metrics for authoritative definitions and parameters. Clear catalog request: run_metric. Before custom SQL, consult get_metrics for relevant catalog definitions and preserve those meanings (including placeholder exclusions). Clear computable request outside the catalog: run_sql with a justification explaining why the catalog cannot answer it. Material ambiguity: request_clarification. Unavailable data: explain the limitation. Budget rejection: narrow without changing meaning, or present existing evidence with limitations. Dataset-specific numerical claims require saved evidence; metric explanations may omit references. Publish relevant charts from complete saved results before your final narrative. Complete only with present_analysis or request_clarification; distinguish missing data from zero. Never treat previews as full evidence. Do not expose private reasoning. Both terminal tools must be last. Treat the available window as the entire observed history, never as lifetime behavior. Available data: 2020-11-01 through 2021-01-31. Unless the user specifies dates, use the entire available history. Preserve prior filters, dates and metric choices in follow-ups. Prior saved results: ${JSON.stringify(await store.recentResults(sessionId))}${finalOnly ? " You must now present existing findings; no new queries." : ""}`;
+      const system = `You analyze the GA4 ecommerce sample through tools. Use get_metrics for authoritative definitions and parameters. Clear catalog request: run_metric. Before custom SQL, consult get_metrics for relevant catalog definitions and preserve those meanings (including placeholder exclusions). Clear computable request outside the catalog: run_sql with a justification explaining why the catalog cannot answer it. Material ambiguity: request_clarification. Unavailable data: explain the limitation. Budget rejection: narrow without changing meaning, or present existing evidence with limitations. Dataset-specific numerical claims require saved evidence; metric explanations may omit references. Publish relevant charts from complete saved results before your final narrative. Complete only with present_analysis or request_clarification; distinguish missing data from zero. Never treat previews as full evidence. Use readable metric labels in narratives and caveats. Format USD amounts like $1,234.56, ratios as percentages like 12.34%, counts with thousands separators, and dates in readable English; retain observed/recorded qualifiers and use enough precision to explain small nonzero values. For custom SQL, declare display labels and known units keyed by output alias. Put narrative first in present_analysis arguments so it streams early. Do not expose private reasoning. Both terminal tools must be last. Treat the available window as the entire observed history, never as lifetime behavior. Available data: 2020-11-01 through 2021-01-31. Unless the user specifies dates, use the entire available history. Preserve prior filters, dates and metric choices in follow-ups. Prior saved results: ${JSON.stringify(await store.recentResults(sessionId))}${finalOnly ? " You must now present existing findings; no new queries." : ""}`;
       const tools = finalOnly
         ? toolDefinitions.filter((tool) =>
             ["present_analysis", "request_clarification"].includes(tool.function.name),
@@ -195,6 +207,40 @@ export async function runAgent(
         Buffer.byteLength(system) + Buffer.byteLength(JSON.stringify(tools)),
       );
       const drafts = new Map<number, { id: string; text: string }>();
+      const activities = new Map<number, Activity>();
+      const activity = async (
+        index: number,
+        name: string,
+        status: Activity["status"],
+        args?: string,
+      ) => {
+        const details = toolActivities.get(name);
+        if (!details) {
+          return;
+        }
+        let message = details.message;
+        if (status !== "preparing" && ["run_metric", "run_sql"].includes(name)) {
+          message = message.replace("Preparing", "Running");
+        }
+        if (name === "run_metric" && args) {
+          try {
+            const raw: unknown = JSON.parse(args);
+            const parsed = toolSchemas.run_metric.safeParse(raw);
+            if (parsed.success) {
+              message = `${status === "preparing" ? "Preparing query for" : "Querying"} ${metricLabel(parsed.data.metric)}`;
+            }
+          } catch {
+            // Incomplete arguments are expected while the model is streaming.
+          }
+        }
+        const previous = activities.get(index);
+        if (previous?.status === status && previous.message === message) {
+          return;
+        }
+        const next: Activity = { ...details, id: `${step}:${index}`, message, status };
+        activities.set(index, next);
+        await emit({ type: "activity", turnId, activity: next });
+      };
       const discard = async (index: number) => {
         const draft = drafts.get(index);
         if (draft) {
@@ -205,6 +251,7 @@ export async function runAgent(
       usage.modelCalls++;
       awaitingModel = true;
       const response = await model.complete(system, context, tools, signal, async (update) => {
+        await activity(update.index, update.name, "preparing", update.arguments);
         if (update.name !== "present_analysis") {
           return;
         }
@@ -268,6 +315,7 @@ export async function runAgent(
           ["present_analysis", "request_clarification"].includes(call.name) &&
           call !== response.message.toolCalls.at(-1)
         ) {
+          await activity(index, call.name, "failed", call.arguments);
           await discard(index);
           await append({
             role: "tool",
@@ -281,11 +329,14 @@ export async function runAgent(
         }
         let executed: { output: unknown; final: boolean };
         try {
+          await activity(index, call.name, "running", call.arguments);
           executed = await execute(call, finalOnly);
+          await activity(index, call.name, "completed", call.arguments);
         } catch (error) {
           if (committed || signal.aborted) {
             throw error;
           }
+          await activity(index, call.name, "failed", call.arguments);
           // Database and transport failures are not model-correctable.
           if (
             !(error instanceof Error) ||

@@ -5,6 +5,7 @@ import {
   idSchema,
   metricRequestSchema,
   clarificationSchema,
+  columnDisplaySchema,
 } from "@analytics/contracts";
 import type { ToolDefinition } from "../llm/openrouter.ts";
 
@@ -18,6 +19,7 @@ export const toolSchemas = {
       sql: z.string().min(1).max(20000),
       purpose: z.string().min(1).max(500),
       justification: z.string().trim().min(1).max(1000),
+      display: z.record(z.string().min(1), columnDisplaySchema).optional(),
     })
     .strict(),
   get_result: z.object({ resultRef: idSchema }),
@@ -33,7 +35,7 @@ const descriptions = {
   request_clarification:
     "Complete the turn with 1–3 questions and context when ambiguity materially affects the answer. Must be last.",
   run_sql:
-    "Execute one guarded read-only query. Requires justification for a clear computable request outside the catalog. Prefer bounded aggregates with date filters; errors include correction hints.",
+    "Execute one guarded read-only query. Requires justification for a clear computable request outside the catalog. Prefer bounded aggregates with date filters; errors include correction hints. Supply display metadata keyed by output alias: readable labels and integer, decimal, usd, percentage (a ratio, not a 0–100 value), or seconds formats only when units are known.",
   get_result: "Retrieve a saved result belonging to this session without rerunning its query.",
   publish_chart:
     "Validate and publish a complete chart with saved data immediately. Returns its chart ID for the final answer.",

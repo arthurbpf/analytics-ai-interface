@@ -4,8 +4,16 @@ import { analysisSchema, publishedChartSchema } from "./charts.ts";
 import { idSchema, apiErrorSchema, terminalStatusSchema, sessionSchema } from "./sessions.ts";
 
 const eventBase = z.object({ turnId: idSchema });
+export const activitySchema = z.object({
+  id: z.string().min(1).max(100),
+  stage: z.enum(["thinking", "querying", "charting", "composing"]),
+  message: z.string().min(1).max(300),
+  status: z.enum(["preparing", "running", "completed", "failed"]),
+});
+export type Activity = z.infer<typeof activitySchema>;
 export const streamEventSchema = z.discriminatedUnion("type", [
   eventBase.extend({ type: z.literal("turn_started") }),
+  eventBase.extend({ type: z.literal("activity"), activity: activitySchema }),
   eventBase.extend({ type: z.literal("session_updated"), session: sessionSchema }),
   eventBase.extend({
     type: z.literal("progress"),

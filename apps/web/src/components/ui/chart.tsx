@@ -63,10 +63,14 @@ function ChartTooltipContent({
   active,
   payload,
   label,
+  valueFormatter,
+  labelFormatter,
 }: {
   active?: boolean | undefined;
   payload?: readonly unknown[] | undefined;
   label?: unknown;
+  valueFormatter?: (value: unknown) => string;
+  labelFormatter?: (value: unknown) => string;
 }) {
   const config = useChart();
   const parsed = payloadSchema.safeParse(payload);
@@ -76,7 +80,7 @@ function ChartTooltipContent({
   return (
     <div className="grid min-w-32 gap-1.5 border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
       {(typeof label === "string" || typeof label === "number") && (
-        <div className="font-medium">{label}</div>
+        <div className="font-medium">{labelFormatter ? labelFormatter(label) : label}</div>
       )}
       {parsed.data
         .filter((item) => item.type !== "none")
@@ -87,11 +91,13 @@ function ChartTooltipContent({
               <div className="size-2 shrink-0" style={{ backgroundColor: item.color }} />
               <span className="text-muted-foreground">{config[key]?.label ?? item.name}</span>
               <span className="ml-auto font-medium tabular-nums">
-                {item.value === null || item.value === undefined
-                  ? "—"
-                  : typeof item.value === "number"
-                    ? item.value.toLocaleString("en-US")
-                    : String(item.value)}
+                {valueFormatter
+                  ? valueFormatter(item.value)
+                  : item.value === null || item.value === undefined
+                    ? "—"
+                    : typeof item.value === "number"
+                      ? item.value.toLocaleString("en-US")
+                      : String(item.value)}
               </span>
             </div>
           );

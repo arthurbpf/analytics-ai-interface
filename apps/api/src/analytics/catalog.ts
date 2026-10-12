@@ -6,6 +6,8 @@ import {
   type MetricId,
   type MetricRequest,
   type QueryParameters,
+  type ColumnDisplay,
+  columnLabel,
 } from "@analytics/contracts";
 import { ToolError } from "../errors.ts";
 
@@ -118,8 +120,48 @@ const aggregates = {
   },
 } satisfies Record<MetricId, { definition: string; sql: string }>;
 
+const displayOverrides: Record<string, ColumnDisplay> = {
+  aov: { label: "Average order value", format: "usd" },
+  revenue: { label: "Recorded revenue", format: "usd" },
+  recorded_item_revenue: { label: "Recorded item revenue", format: "usd" },
+  conversion_rate: { label: "Session conversion rate", format: "percentage" },
+  add_to_cart_rate: { label: "Add-to-cart rate", format: "percentage" },
+  checkout_abandonment: { label: "Observed checkout abandonment", format: "percentage" },
+  engagement_rate: { label: "Engagement rate", format: "percentage" },
+  avg_observed_session_duration: { label: "Average observed session duration", format: "seconds" },
+  avg_recorded_engagement_time: { label: "Average recorded engagement time", format: "seconds" },
+  items_per_purchase: { label: "Recorded items per purchase", format: "decimal" },
+  new_vs_returning_sessions: { label: "First vs later observed sessions" },
+  purchasers_by_purchasing_session_count: {
+    label: "Purchasers by observed purchasing-session count",
+  },
+  item_id: { label: "Item ID" },
+  source: { label: "First-user source" },
+  medium: { label: "First-user medium" },
+  day: { label: "Date" },
+  week: { label: "Week starting" },
+};
+function outputColumns(sql: string): string[] {
+  return [...sql.matchAll(/ AS (\w+)/g)].flatMap((match) => (match[1] ? [match[1]] : []));
+}
+const numericOutputs = new Set(
+  Object.values(aggregates).flatMap((value) => outputColumns(value.sql)),
+);
+export function catalogColumnDisplay(name: string): ColumnDisplay {
+  return (
+    displayOverrides[name] ?? {
+      label: columnLabel(name),
+      ...(numericOutputs.has(name) ? { format: "integer" } : {}),
+    }
+  );
+}
+export function metricLabel(name: string): string {
+  return catalogColumnDisplay(name).label ?? columnLabel(name);
+}
+
 export const catalog = Object.fromEntries(
   Object.entries(aggregates).map(([metric, value]) => {
+    const columns = outputColumns(value.sql);
     const dimensions =
       metric === "purchasers_by_purchasing_session_count"
         ? []
@@ -134,7 +176,8 @@ export const catalog = Object.fromEntries(
         definition: value.definition,
         dimensions,
         filters: dimensions,
-        outputColumns: [...value.sql.matchAll(/ AS (\w+)/g)].map((match) => match[1]),
+        outputColumns: columns,
+        display: Object.fromEntries(columns.map((name) => [name, catalogColumnDisplay(name)])),
         acceptedParameters: {
           dates: availableHistory,
           grain: ["day", "week"],
@@ -308,7 +351,7 @@ export function buildMetric(value: unknown): BuiltMetric {
   }
   if (args.topN) {
     caveats.push(
-      `Top ${args.topN.count} groups ranked by ${args.topN.by}; evidence supports only this selection, not the whole breakdown.`,
+      `Top ${args.topN.count} groups ranked by ${metricLabel(args.topN.by)}; evidence supports only this selection, not the whole breakdown.`,
     );
   }
   return {
