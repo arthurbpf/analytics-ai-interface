@@ -2,6 +2,7 @@ import {
   historySchema,
   turnRequestSchema,
   type Analysis,
+  type Clarification,
   type Identity,
   type PublishedChart,
   type SessionHistory,
@@ -19,6 +20,7 @@ type ActiveResponse = {
   controller: AbortController;
   charts: PublishedChart[];
   analysis: Analysis | null;
+  clarification: Clarification | null;
   draft: { id: string; text: string } | null;
   progress: string;
   finished: boolean;
@@ -303,6 +305,7 @@ export class ChatController {
       controller: new AbortController(),
       charts: [],
       analysis: null,
+      clarification: null,
       draft: null,
       progress: "Starting analysis",
       finished: false,
@@ -358,6 +361,10 @@ export class ChatController {
           active.draft = null;
         }
         break;
+      case "clarification_ready":
+        active.clarification = event.clarification;
+        active.draft = null;
+        break;
       case "analysis_ready":
         active.analysis = event.analysis;
         active.draft = null;
@@ -406,6 +413,18 @@ export class ChatController {
         id: crypto.randomUUID(),
         turnId,
         content: { kind: "analysis", analysis: active.analysis },
+      });
+    }
+    if (
+      active.clarification &&
+      !messages.some(
+        (message) => message.turnId === turnId && message.content.kind === "clarification",
+      )
+    ) {
+      messages.push({
+        id: crypto.randomUUID(),
+        turnId,
+        content: { kind: "clarification", clarification: active.clarification },
       });
     }
     this.update({ histories: { ...this.state.histories, [id]: { ...cached, messages } } });

@@ -13,6 +13,13 @@ export const turnId = randomUUID();
 export const sql =
   "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device";
 export const result: QueryResult = {
+  origin: "adhoc",
+  catalog: null,
+  parameters: {},
+  justification: null,
+  requiredCaveats: [],
+  dataQuality: {},
+  scope: { kind: "unspecified", topN: null },
   ref: randomUUID(),
   sql,
   purpose: "Purchases by device",
@@ -164,7 +171,11 @@ export function fixtureModel(
           });
         }
       }
-      return call("run_sql", { sql, purpose: "Purchases by device" });
+      return call("run_sql", {
+        sql,
+        purpose: "Purchases by device",
+        justification: "Fixture custom SQL",
+      });
     },
   };
 }

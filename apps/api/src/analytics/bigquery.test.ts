@@ -90,7 +90,7 @@ it("dry-runs before execution, enforces caps independently of LIMIT, and reconci
   );
   expect(result.complete).toBe(true);
   expect(budget.remaining).toBe(140n);
-  expect(warehouse.execute).toHaveBeenCalledWith(sql, 100n, expect.any(AbortSignal));
+  expect(warehouse.execute).toHaveBeenCalledWith(sql, 100n, expect.any(AbortSignal), undefined);
   warehouse.inspect = async () => ({
     statementType: "SELECT",
     tables: [],

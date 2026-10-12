@@ -144,10 +144,12 @@ turn. Duplicate client turn IDs return 409.
 Disconnects cancel work while preserving saved artifacts; startup marks abandoned
 turns interrupted. Retention/deletion policy is not implemented yet.
 
-Default caps: 1 GiB/query, 5 GiB/turn, 5 SQL executions, 8 model calls, 4 charts,
+Default caps: 2 GiB/catalog query, 1 GiB/ad-hoc query, one 5 GiB/turn ledger, 5 SQL executions, 8 model calls, 4 charts,
 120 seconds, 4,096 output tokens/call, 128 KiB model input, and 500 rows,
 32 columns, and 64 KiB per result. Byte caps are provisional and configurable in
-`.env`; live dataset calibration remains pending. Incomplete results cannot
+`.env`. Representative scan estimates and live verification are recorded in
+`docs/live-catalog-results.json`. Full-history session construction scans the
+whole available history even for a narrower reporting period. Incomplete results cannot
 support charts or final presentation. Model usage is recorded separately;
 there is no dollar-denominated LLM spending cap.
 

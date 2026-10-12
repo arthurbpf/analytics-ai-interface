@@ -20,10 +20,14 @@ export function buildContext(
       if (message.content.kind === "model") {
         modelMessages.push(message.content.message);
       }
-      if (message.content.kind === "analysis") {
+      if (message.content.kind === "analysis" || message.content.kind === "clarification") {
         modelMessages.push({
           role: "assistant",
-          content: JSON.stringify(message.content.analysis),
+          content: JSON.stringify(
+            message.content.kind === "analysis"
+              ? message.content.analysis
+              : message.content.clarification,
+          ),
           toolCalls: [],
         });
       }

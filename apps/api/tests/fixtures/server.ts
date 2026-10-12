@@ -17,6 +17,18 @@ const model: ModelClient = {
         prompt = message.content;
       }
     }
+    if (prompt === "Clarify customer frequency") {
+      await update?.({
+        index: 0,
+        name: "present_analysis",
+        arguments: '{"narrative":"Discarded clarification draft"}',
+      });
+      await setTimeout(100, undefined, { signal });
+      return call("request_clarification", {
+        context: "Choose a frequency measure.",
+        questions: ["Purchase events or purchasing sessions?"],
+      });
+    }
     let response = await scripted.complete(system, messages, tools, signal);
     const tool = response.message.toolCalls[0];
     if (!tool) {

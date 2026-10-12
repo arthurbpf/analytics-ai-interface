@@ -1,7 +1,7 @@
 import { ToolError } from "../errors.ts";
 import { randomUUID } from "node:crypto";
 import {
-  analysisSchema,
+  analysisRequestSchema,
   chartSpecSchema,
   type Analysis,
   type ChartSpec,
@@ -61,6 +61,8 @@ export function validateChart(spec: ChartSpec, result: QueryResult): PublishedCh
   return {
     id: randomUUID(),
     spec,
+    scope: result.scope,
+    requiredCaveats: result.requiredCaveats,
     data: {
       columns: result.columns,
       rows: result.rows,
@@ -75,9 +77,11 @@ export async function validateAnalysis(
   store: AgentStore,
   charts: PublishedChart[],
 ): Promise<Analysis> {
-  const analysis = analysisSchema.parse(value);
+  const analysis = analysisRequestSchema.parse(value);
+  const requiredCaveats: string[] = [];
   for (const ref of analysis.resultRefs) {
     const result = await store.result(sessionId, ref);
+    requiredCaveats.push(...result.requiredCaveats);
     if (!result.complete) {
       throw new ToolError("Final evidence must reference complete query results");
     }
@@ -91,5 +95,5 @@ export async function validateAnalysis(
       throw new ToolError("Chart result must be included in final evidence references");
     }
   }
-  return analysis;
+  return { ...analysis, caveats: [...new Set([...analysis.caveats, ...requiredCaveats])] };
 }

@@ -91,7 +91,11 @@ it("repairs a prohibited SQL query without executing it", async () => {
     complete: async (system, messages, tools, signal) => {
       calls++;
       if (calls === 1) {
-        return call("run_sql", { sql: "DELETE FROM prohibited", purpose: "Bad" });
+        return call("run_sql", {
+          sql: "DELETE FROM prohibited",
+          purpose: "Bad",
+          justification: "Fixture prohibited SQL",
+        });
       }
       return normal.complete(system, messages, tools, signal);
     },
@@ -142,14 +146,17 @@ it("repairs a chart mapping without streaming an invalid chart", async () => {
   );
   expect(events.filter((event) => event.type === "chart_ready")).toHaveLength(1);
 });
-it("plain prose cannot complete; last call exposes only presentation", async () => {
+it("plain prose cannot complete; last call exposes both terminal tools", async () => {
   const { deps, emit, history } = setup();
   let requests = 0;
   deps.model = {
     complete: async (_system, _messages, tools) => {
       requests++;
       if (requests === 8) {
-        expect(tools.map((tool) => tool.function.name)).toEqual(["present_analysis"]);
+        expect(tools.map((tool) => tool.function.name)).toEqual([
+          "request_clarification",
+          "present_analysis",
+        ]);
       }
       return {
         message: { role: "assistant", content: "Done", toolCalls: [] },
@@ -223,7 +230,8 @@ it("executes tool calls sequentially and rejects presentation before later calls
           chartIds: [],
         });
         response.message.toolCalls.push(
-          ...call("run_sql", { sql, purpose: "Device" }).message.toolCalls,
+          ...call("run_sql", { sql, purpose: "Device", justification: "Fixture custom SQL" })
+            .message.toolCalls,
         );
         return response;
       }
@@ -254,7 +262,8 @@ it("enforces SQL and chart counts separately from the model budget", async () =>
   const execute = vi.fn(queries.deps.warehouse.execute);
   queries.deps.warehouse.execute = execute;
   queries.deps.model = {
-    complete: async () => call("run_sql", { sql, purpose: "Repeated query" }),
+    complete: async () =>
+      call("run_sql", { sql, purpose: "Repeated query", justification: "Fixture custom SQL" }),
   };
   expect(
     (await runAgent(queries.deps, sessionId, turnId, new AbortController().signal, queries.emit))
@@ -369,4 +378,139 @@ it("streams only presentation drafts, discards failed validation, and replaces w
   expect(draft).toBe('Repaired "answer"\n📊');
   expect(JSON.stringify(events)).not.toContain("secret");
   expect(history.messages.filter((message) => message.content.kind === "analysis")).toHaveLength(1);
+});
+
+it("completes clarification once, retains results, discards drafts and enters follow-up context", async () => {
+  const { deps, history, results, events, emit } = setup();
+  results.set(result.ref, result);
+  const clarification = {
+    context: "Customer frequency can mean sessions or purchase events.",
+    questions: ["Which measure should I compare?"],
+  };
+  deps.model = {
+    complete: async (_system, _messages, _tools, _signal, onDelta) => {
+      await onDelta?.({
+        index: 0,
+        name: "present_analysis",
+        arguments: '{"narrative":"Draft text"}',
+      });
+      return call("request_clarification", clarification);
+    },
+  };
+  expect((await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).status).toBe(
+    "completed",
+  );
+  expect(
+    history.messages.filter((message) => message.content.kind === "clarification"),
+  ).toHaveLength(1);
+  expect(events.filter((event) => event.type === "clarification_ready")).toHaveLength(1);
+  expect(events.some((event) => event.type === "analysis_discarded")).toBe(true);
+  expect(events.some((event) => event.type === "analysis_ready")).toBe(false);
+  expect(results.size).toBe(1);
+  const { buildContext } = await import("./context.ts");
+  expect(JSON.stringify(buildContext(history, randomUUID(), 0))).toContain(
+    clarification.questions[0],
+  );
+});
+it("makes both terminal tools available at the final step", async () => {
+  const { deps, emit } = setup();
+  let step = 0;
+  deps.model = {
+    complete: async (_system, messages, tools) => {
+      step++;
+      if (step === 7) {
+        return call("run_sql", { sql, purpose: "Wrong", justification: "Fixture" });
+      }
+      if (step === 8) {
+        expect(tools.map((tool) => tool.function.name)).toEqual([
+          "request_clarification",
+          "present_analysis",
+        ]);
+        return call("request_clarification", {
+          context: "Date ambiguity",
+          questions: ["Which month?"],
+        });
+      }
+      if (step > 1) {
+        expect(toolOutputs(messages).length).toBeGreaterThan(0);
+      }
+      return call("get_schema", {});
+    },
+  };
+  expect((await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).status).toBe(
+    "completed",
+  );
+});
+it("rejects unjustified ad-hoc SQL without spending warehouse budget", async () => {
+  const { deps, emit } = setup();
+  const execute = vi.fn(deps.warehouse.execute);
+  deps.warehouse.execute = execute;
+  let step = 0;
+  deps.model = {
+    complete: async (_system, messages) => {
+      if (++step === 1) {
+        return call("run_sql", { sql, purpose: "Missing justification" });
+      }
+      expect(toolOutputs(messages).at(-1)).toContain("justification");
+      return call("request_clarification", { context: "Question", questions: ["Which month?"] });
+    },
+  };
+  expect((await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).status).toBe(
+    "completed",
+  );
+  expect(execute).not.toHaveBeenCalled();
+});
+
+it("rejects unavailable work during final dispatch while allowing clarification to complete", async () => {
+  const { deps, emit } = setup();
+  let step = 0;
+  const execute = vi.fn(deps.warehouse.execute);
+  deps.warehouse.execute = execute;
+  deps.model = {
+    complete: async () => {
+      if (++step < 8) {
+        return call("get_schema", {});
+      }
+      const response = call("run_sql", { sql, purpose: "Too late", justification: "Fixture" });
+      response.message.toolCalls.push(
+        ...call("request_clarification", { context: "Period needed", questions: ["Which month?"] })
+          .message.toolCalls,
+      );
+      return response;
+    },
+  };
+  expect((await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).status).toBe(
+    "completed",
+  );
+  expect(execute).not.toHaveBeenCalled();
+});
+it("requires clarification last and never emits clarification success before persistence", async () => {
+  const { deps, emit, events } = setup();
+  let step = 0;
+  deps.model = {
+    complete: async (_system, messages) => {
+      const response = call("request_clarification", {
+        context: "Period needed",
+        questions: ["Which month?"],
+      });
+      if (++step === 1) {
+        response.message.toolCalls.push(...call("get_schema", {}).message.toolCalls);
+      } else {
+        expect(
+          toolOutputs(messages).some((output) =>
+            output.includes("request_clarification must be the last"),
+          ),
+        ).toBe(true);
+      }
+      return response;
+    },
+  };
+  deps.store.complete = async () => {
+    throw new Error("Database offline");
+  };
+  expect((await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).status).toBe(
+    "failed",
+  );
+  expect(step).toBe(2);
+  expect(events.some((event) => event.type === "clarification_ready")).toBe(false);
 });

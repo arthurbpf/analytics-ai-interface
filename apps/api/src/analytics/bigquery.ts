@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { BigQuery, BigQueryInt } from "@google-cloud/bigquery";
 import { z } from "zod";
-import { queryResultSchema, type QueryResult, type ResultData } from "@analytics/contracts";
+import {
+  queryResultSchema,
+  type QueryResult,
+  type ResultData,
+  type QueryParameters,
+} from "@analytics/contracts";
+import type { BuiltMetric } from "./catalog.ts";
 import { ToolError } from "../errors.ts";
 import { limits } from "../config.ts";
 import type { QueryBudget } from "./budget.ts";
@@ -34,8 +40,19 @@ export interface Execution {
   data: ResultData;
 }
 export interface Warehouse {
-  inspect(this: void, sql: string, signal: AbortSignal): Promise<Inspection>;
-  execute(this: void, sql: string, cap: bigint, signal: AbortSignal): Promise<Execution>;
+  inspect(
+    this: void,
+    sql: string,
+    signal: AbortSignal,
+    parameters?: QueryParameters,
+  ): Promise<Inspection>;
+  execute(
+    this: void,
+    sql: string,
+    cap: bigint,
+    signal: AbortSignal,
+    parameters?: QueryParameters,
+  ): Promise<Execution>;
 }
 const rawRowsSchema = z.array(z.record(z.string(), z.unknown()));
 const wrappedValue = z.object({ value: z.string() });
@@ -107,10 +124,15 @@ export class BigQueryWarehouse implements Warehouse {
   constructor(projectId: string) {
     this.client = new BigQuery({ projectId });
   }
-  async inspect(sql: string, signal: AbortSignal): Promise<Inspection> {
+  async inspect(
+    sql: string,
+    signal: AbortSignal,
+    parameters?: QueryParameters,
+  ): Promise<Inspection> {
     signal.throwIfAborted();
     const [job] = await this.client.createQueryJob({
       query: sql,
+      ...(parameters ? { params: parameters } : {}),
       dryRun: true,
       useLegacySql: false,
       location: "US",
@@ -125,10 +147,16 @@ export class BigQueryWarehouse implements Warehouse {
       estimatedBytes: BigInt(query.totalBytesProcessed),
     };
   }
-  async execute(sql: string, cap: bigint, signal: AbortSignal): Promise<Execution> {
+  async execute(
+    sql: string,
+    cap: bigint,
+    signal: AbortSignal,
+    parameters?: QueryParameters,
+  ): Promise<Execution> {
     signal.throwIfAborted();
     const [job] = await this.client.createQueryJob({
       query: sql,
+      ...(parameters ? { params: parameters } : {}),
       useLegacySql: false,
       location: "US",
       maximumBytesBilled: cap.toString(),
@@ -194,13 +222,14 @@ export class BigQueryWarehouse implements Warehouse {
 export async function runQuery(
   warehouse: Warehouse,
   budget: QueryBudget,
-  input: { sql: string; purpose: string },
+  input: { sql: string; purpose: string; justification?: string; catalog?: BuiltMetric },
   signal: AbortSignal,
+  perQueryCap?: bigint,
 ): Promise<QueryResult> {
   const sql = guardSql(input.sql);
   let inspection: Inspection;
   try {
-    inspection = await warehouse.inspect(sql, signal);
+    inspection = await warehouse.inspect(sql, signal, input.catalog?.parameters);
   } catch (error) {
     const apiError = z.object({ code: z.literal(400), message: z.string() }).safeParse(error);
     if (apiError.success) {
@@ -209,10 +238,10 @@ export async function runQuery(
     throw error;
   }
   checkDryRun(inspection);
-  const cap = budget.reserve(inspection.estimatedBytes);
+  const cap = budget.reserve(inspection.estimatedBytes, perQueryCap);
   let executed: Execution;
   try {
-    executed = await warehouse.execute(sql, cap, signal);
+    executed = await warehouse.execute(sql, cap, signal, input.catalog?.parameters);
   } catch (error) {
     const apiError = z.object({ code: z.literal(400), message: z.string() }).safeParse(error);
     if (apiError.success) {
@@ -231,11 +260,88 @@ export async function runQuery(
       bytesBilled: executed.bytesBilled,
     }),
   );
+  let data = executed.data;
+  const dataQuality: QueryResult["dataQuality"] = {};
+  let scope: QueryResult["scope"] = { kind: "unspecified", topN: null };
+  const requiredCaveats = input.catalog
+    ? [...input.catalog.requiredCaveats]
+    : [
+        "Custom SQL: analytical scope and definitions are not catalog-validated; successful execution does not certify analytical correctness.",
+      ];
+  if (input.catalog) {
+    const first = data.rows[0];
+    const groupCount = first?.["_group_count"];
+    const rows = data.rows
+      .filter((row) => row["_present"] === 1)
+      .map((row) =>
+        Object.fromEntries(Object.entries(row).filter(([key]) => !key.startsWith("_"))),
+      );
+    data = {
+      ...data,
+      columns: data.columns.filter((column) => !column.name.startsWith("_")),
+      rows,
+    };
+    if (!data.complete && (typeof groupCount !== "number" || !Number.isSafeInteger(groupCount))) {
+      requiredCaveats.push(
+        "Transport preview is incomplete; analytical scope metadata could not be fetched. Narrow or aggregate the query.",
+      );
+    } else {
+      if (typeof groupCount !== "number" || !Number.isSafeInteger(groupCount) || groupCount < 0) {
+        throw new Error("Catalog query did not return valid group metadata");
+      }
+      for (const [key, value] of Object.entries(first ?? {})) {
+        if (
+          key.startsWith("_quality_") &&
+          (typeof value === "number" || typeof value === "string" || value === null)
+        ) {
+          dataQuality[key.slice(9)] = value;
+        }
+      }
+      const topN = input.catalog.arguments.topN;
+      const returnedCount = topN ? Math.min(groupCount, topN.count) : groupCount;
+      data = {
+        ...data,
+        totalRows: String(returnedCount),
+        complete: data.complete && rows.length === returnedCount,
+      };
+      scope = {
+        kind: topN ? "top_n" : "full",
+        topN: topN
+          ? {
+              by: topN.by,
+              requestedCount: topN.count,
+              returnedCount,
+              groupCount: String(groupCount),
+              omittedGroupCount: String(groupCount - returnedCount),
+            }
+          : null,
+      };
+      if (Object.keys(dataQuality).length) {
+        requiredCaveats.push(
+          `Data-quality counts across the full requested breakdown before ranking: ${JSON.stringify(dataQuality)}.`,
+        );
+      }
+      if (scope.topN) {
+        requiredCaveats.push(
+          `Returned ${returnedCount} of ${groupCount} groups; omitted ${groupCount - returnedCount}.`,
+        );
+      }
+    }
+  }
   return queryResultSchema.parse({
+    origin: input.catalog ? "catalog" : "adhoc",
+    catalog: input.catalog
+      ? { arguments: input.catalog.arguments, definition: input.catalog.definition }
+      : null,
+    parameters: input.catalog?.parameters ?? {},
+    justification: input.justification ?? null,
+    requiredCaveats,
+    dataQuality,
+    scope,
     ref: randomUUID(),
     sql,
     purpose: input.purpose,
-    ...executed.data,
+    ...data,
     jobId: executed.jobId,
     bytesProcessed: executed.bytesProcessed,
     bytesBilled: executed.bytesBilled,

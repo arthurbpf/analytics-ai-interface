@@ -312,3 +312,25 @@ it("polls pending titles after stream closure without replaying a turn", async (
   expect(controller.getSnapshot().index.sessions[0]?.label).toBe("Late title");
   expect(api.turn).toHaveBeenCalledTimes(1);
 });
+
+it("retains clarification once and disposes the draft even when reload fails", async () => {
+  const { controller, api } = await setup();
+  const clarification = { context: "Specify a period.", questions: ["Which month?"] };
+  api.history = vi.fn(async () => {
+    throw new Error("Reload unavailable");
+  });
+  api.turn = vi.fn(async function* (): AsyncGenerator<StreamEvent> {
+    yield { type: "turn_started", turnId };
+    yield { type: "chart_ready", turnId, chart: chart() };
+    yield { type: "analysis_started", turnId, draftId };
+    yield { type: "analysis_delta", turnId, draftId, delta: "Discard this" };
+    yield { type: "clarification_ready", turnId, clarification };
+    yield { type: "clarification_ready", turnId, clarification };
+    yield { type: "turn_finished", turnId, status: "completed", error: null };
+  });
+  controller.send("Compare");
+  await vi.waitFor(() => completed(controller));
+  expect(
+    controller.getSnapshot().histories[sessionId]?.messages.map((message) => message.content.kind),
+  ).toEqual(["user", "chart", "clarification"]);
+});

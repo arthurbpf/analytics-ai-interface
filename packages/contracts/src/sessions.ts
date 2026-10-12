@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { clarificationSchema } from "./metrics.ts";
 import { analysisSchema, publishedChartSchema } from "./charts.ts";
 
 export const idSchema = z.uuid();
@@ -33,6 +34,7 @@ export const messageContentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("user"), text: z.string() }),
   z.object({ kind: z.literal("chart"), chart: publishedChartSchema }),
   z.object({ kind: z.literal("analysis"), analysis: analysisSchema }),
+  z.object({ kind: z.literal("clarification"), clarification: clarificationSchema }),
 ]);
 export type MessageContent = z.infer<typeof messageContentSchema>;
 export const displayMessageSchema = z.object({

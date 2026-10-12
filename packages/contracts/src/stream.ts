@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { clarificationSchema } from "./metrics.ts";
 import { analysisSchema, publishedChartSchema } from "./charts.ts";
 import { idSchema, apiErrorSchema, terminalStatusSchema, sessionSchema } from "./sessions.ts";
 
@@ -20,6 +21,7 @@ export const streamEventSchema = z.discriminatedUnion("type", [
   }),
   eventBase.extend({ type: z.literal("analysis_discarded"), draftId: idSchema }),
   eventBase.extend({ type: z.literal("analysis_ready"), analysis: analysisSchema }),
+  eventBase.extend({ type: z.literal("clarification_ready"), clarification: clarificationSchema }),
   eventBase.extend({
     type: z.literal("turn_finished"),
     status: terminalStatusSchema,

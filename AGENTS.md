@@ -48,9 +48,13 @@ from remaining product and deployment work.
 
 - OpenRouter is the LLM vendor. Start with one configured model and a small
   adapter; do not build a generic provider framework.
-- The model freely authors SQL using metric definitions and canonical examples
-  from the semantic layer. The application does not generate queries from a
-  fixed metric DSL.
+- Prefer `run_metric` for catalog requests: server-built parameterized SQL with
+  explicit metric definitions. Keep guarded ad-hoc `run_sql` for clear computable
+  requests outside the catalog, with a required purpose and justification.
+- Material ambiguity completes the turn through `request_clarification`; the
+  answer starts a normal new turn. Keep one agent; delegation is deferred.
+- The entire available history is November 1, 2020 through January 31, 2021.
+  Observed sessions and customer frequency must not imply lifetime behavior.
 - The executor owns access checks and all execution limits. Prompt instructions
   and semantic examples do not enforce correctness or spending limits.
 - Keep concrete, typed boundaries between the LLM adapter, semantic layer, query
@@ -153,7 +157,7 @@ whose name ends in `_test`.
 
 # Implementation status and learnings
 
-- Implemented: six-tool sequential agent loop, OpenRouter adapter, semantic
+- Implemented: eight-tool single-agent sequential loop, OpenRouter adapter, semantic
   definitions, SQL/resource checks, BigQuery dry-run and execution caps,
   PostgreSQL session/result storage, structured presentation, and SSE.
 - Shared API schemas, types, and stream reader live in `packages/contracts`, split
@@ -167,7 +171,10 @@ whose name ends in `_test`.
 - Disconnects preserve saved artifacts; duplicate client IDs do not replay work.
   Startup recovery assumes one API process. Revisit turn ownership/recovery
   before scaling to multiple instances.
-- Byte caps default to 1 GiB/query and 5 GiB/turn, pending live calibration.
+- Byte caps default to 2 GiB/catalog query, 1 GiB/ad-hoc query and one 5 GiB/turn
+  ledger. Representative live scan estimates are saved in
+  `docs/live-catalog-results.json`; narrowing dates does not reduce full-history
+  session scans. Top-N limits output groups after aggregation, not scanned bytes.
   Model usage is recorded separately; call/context/output limits are not a
   dollar-denominated LLM spending cap.
 - Vitest units, real PostgreSQL integration, and Playwright browser tests use
@@ -181,7 +188,11 @@ whose name ends in `_test`.
   and safe Markdown narratives/drafts/caveats. Title usage is separate from analytics.
   Live Haiku title samples are recorded in `docs/live-title-results.json`; live Google
   login still needs configured OAuth client credentials.
-- Remaining: live analytics validation, budget calibration,
+- Implemented: parameterized 18-metric catalog, result provenance and quality
+  counts, deterministic top-N scope, persisted chart limitations, and clarification
+  completion/SSE/reload/follow-up. Legacy results default to ad-hoc and unspecified
+  scope. Numerical claims still require evaluation beyond reference validation.
+- Remaining: broader live analytics/model evaluations,
   Railway deployment/static serving, backups, retention policy.
   No embeddings or vector indexes are implemented.
 - Express 5 handles rejected async handlers; the obsolete

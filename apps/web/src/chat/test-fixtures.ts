@@ -39,6 +39,8 @@ export function chart(type: ChartSpec["type"] = "bar"): PublishedChart {
   }
   return {
     id: draftId,
+    scope: { kind: "unspecified", topN: null },
+    requiredCaveats: [],
     spec,
     data: {
       columns: [

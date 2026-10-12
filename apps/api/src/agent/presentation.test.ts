@@ -88,3 +88,43 @@ it("rejects malformed request and stream payloads", () => {
     streamEventSchema.parse({ type: "analysis_ready", turnId: randomUUID(), analysis: {} }),
   ).toThrow();
 });
+
+it("attaches result-specific caveats and selection scope to charts and final answers", async () => {
+  const { store, results } = memoryStore();
+  const scoped = {
+    ...result,
+    scope: {
+      kind: "top_n",
+      topN: {
+        by: "purchases",
+        requestedCount: 2,
+        returnedCount: 2,
+        groupCount: "5",
+        omittedGroupCount: "3",
+      },
+    },
+    requiredCaveats: [
+      "Only the top two groups; three omitted.",
+      "Custom SQL definitions are not catalog-validated.",
+    ],
+  } satisfies typeof result;
+  results.set(result.ref, scoped);
+  const chart = validateChart(
+    { type: "table", title: "Selection", resultRef: result.ref, columns: ["device"] },
+    scoped,
+  );
+  expect(chart.scope).toEqual(scoped.scope);
+  expect(chart.requiredCaveats).toEqual(scoped.requiredCaveats);
+  const answer = await validateAnalysis(
+    {
+      narrative: "Findings",
+      resultRefs: [result.ref],
+      chartIds: [chart.id],
+      caveats: [scoped.requiredCaveats[0]],
+    },
+    sessionId,
+    store,
+    [chart],
+  );
+  expect(answer.caveats).toEqual(scoped.requiredCaveats);
+});

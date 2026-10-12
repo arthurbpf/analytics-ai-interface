@@ -1,3 +1,4 @@
+export * from "./metrics.ts";
 export * from "./results.ts";
 export * from "./charts.ts";
 export * from "./sessions.ts";

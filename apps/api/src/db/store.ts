@@ -260,7 +260,7 @@ export class Store {
   async complete(
     sessionId: string,
     turnId: string,
-    content: Extract<StoredMessageContent, { kind: "analysis" }>,
+    content: Extract<StoredMessageContent, { kind: "analysis" | "clarification" }>,
     usage: typeof schema.turns.$inferInsert.usage,
   ) {
     await this.db.transaction(async (tx) => {

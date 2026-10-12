@@ -21,3 +21,17 @@ it("limits query submissions independently of bytes", () => {
   budget.reserve(1n);
   expect(() => budget.reserve(1n)).toThrow();
 });
+
+it("uses one ledger for different submission caps and conservatively retains unknown charges", () => {
+  const budget = new QueryBudget(100n, 500n, 5);
+  const catalog = budget.reserve(150n, 200n);
+  expect(catalog).toBe(200n);
+  budget.settle(catalog, 150n);
+  expect(budget.remaining).toBe(350n);
+  const adhoc = budget.reserve(50n);
+  expect(adhoc).toBe(100n);
+  expect(budget.remaining).toBe(250n);
+  expect(budget.reserve(150n, 200n)).toBe(200n);
+  expect(budget.reserve(40n, 200n)).toBe(50n);
+  expect(budget.remaining).toBe(0n);
+});

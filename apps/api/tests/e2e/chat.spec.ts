@@ -199,3 +199,22 @@ test("Markdown tables and code scroll on mobile while images and HTML stay disab
     true,
   );
 });
+
+test("clarification completes once, clears its draft, reloads and permits a follow-up", async ({
+  page,
+}) => {
+  const composer = page.getByLabel("Ask an analytics question");
+  await composer.fill("Clarify customer frequency");
+  await composer.press("Enter");
+  const question = page.getByText("Purchase events or purchasing sessions?", { exact: true });
+  await expect(question).toHaveCount(1);
+  await expect(page.getByTestId("narrative-draft")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(question).toHaveCount(1);
+  await expect(page.getByText("Discarded clarification draft")).toHaveCount(0);
+  await composer.fill("Purchasing sessions in January");
+  await composer.press("Enter");
+  await expect(page.getByText(narrative, { exact: true })).toBeVisible();
+  await expect(question).toHaveCount(1);
+});

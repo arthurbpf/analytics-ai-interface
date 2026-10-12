@@ -153,6 +153,11 @@ export function ChartView({ chart }: { chart: PublishedChart }) {
             Preview — this result is incomplete.
           </output>
         )}
+        {chart.requiredCaveats.map((caveat) => (
+          <p key={caveat} className="mb-3 text-sm text-muted-foreground">
+            {caveat}
+          </p>
+        ))}
         <ChartBoundary>
           <Visualization chart={chart} />
         </ChartBoundary>

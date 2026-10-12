@@ -2,7 +2,13 @@ import type { ModelMessage, ToolCall } from "../llm/messages.ts";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { parse, STR, OBJ, ARR } from "partial-json";
-import type { ApiError, PublishedChart, StreamEvent, TerminalStatus } from "@analytics/contracts";
+import type {
+  ApiError,
+  PublishedChart,
+  StreamEvent,
+  TerminalStatus,
+  MessageContent,
+} from "@analytics/contracts";
 import { limits } from "../config.ts";
 import { ToolError } from "../errors.ts";
 import { RequestError } from "../db/store.ts";
@@ -10,7 +16,8 @@ import type { AgentStore } from "../db/store.ts";
 import type { ModelClient } from "../llm/openrouter.ts";
 import { QueryBudget } from "../analytics/budget.ts";
 import { runQuery, type Warehouse } from "../analytics/bigquery.ts";
-import { definitions, schemaGuidance } from "../analytics/definitions.ts";
+import { schemaGuidance } from "../analytics/definitions.ts";
+import { catalog, buildMetric } from "../analytics/catalog.ts";
 import { buildContext } from "./context.ts";
 import { validateAnalysis, validateChart } from "./presentation.ts";
 import { toolDefinitions, toolSchemas } from "./tools.ts";
@@ -20,6 +27,7 @@ export interface AgentDependencies {
   model: ModelClient;
   warehouse: Warehouse;
   queryBytes: bigint;
+  catalogQueryBytes?: bigint;
   turnBytes: bigint;
 }
 export interface TurnOutcome {
@@ -54,6 +62,26 @@ export async function runAgent(
   const append = async (message: ModelMessage) => {
     await store.append(sessionId, turnId, { kind: "model", message });
   };
+  const complete = async (
+    call: ToolCall,
+    content: Extract<MessageContent, { kind: "analysis" | "clarification" }>,
+  ) => {
+    signal.throwIfAborted();
+    // Close the protocol exchange before saving the authoritative display answer.
+    await append({
+      role: "tool",
+      toolCallId: call.id,
+      content: JSON.stringify({ accepted: true }),
+    });
+    await store.complete(sessionId, turnId, content, usage);
+    committed = true;
+    if (content.kind === "analysis") {
+      await emit({ type: "analysis_ready", turnId, analysis: content.analysis });
+    } else {
+      await emit({ type: "clarification_ready", turnId, clarification: content.clarification });
+    }
+    return { output: { accepted: true }, final: true };
+  };
   const execute = async (
     call: ToolCall,
     finalOnly: boolean,
@@ -64,8 +92,10 @@ export async function runAgent(
     } catch {
       throw new ToolError("Tool arguments must be valid JSON");
     }
-    if (finalOnly && call.name !== "present_analysis") {
-      throw new ToolError("Work budget reached; call present_analysis with existing findings");
+    if (finalOnly && !["present_analysis", "request_clarification"].includes(call.name)) {
+      throw new ToolError(
+        "Work budget reached; call present_analysis with existing findings or request_clarification",
+      );
     }
     switch (call.name) {
       case "get_schema":
@@ -74,17 +104,32 @@ export async function runAgent(
       case "get_metrics": {
         const { name } = toolSchemas.get_metrics.parse(args);
         if (!name) {
-          return { output: definitions, final: false };
+          return { output: catalog, final: false };
         }
-        const metric = Object.entries(definitions).find(([key]) => key === name);
+        const metric = Object.entries(catalog).find(([key]) => key === name);
         if (!metric) {
-          throw new ToolError(`Unknown metric. Available: ${Object.keys(definitions).join(", ")}`);
+          throw new ToolError(`Unknown metric. Available: ${Object.keys(catalog).join(", ")}`);
         }
         return { output: metric[1], final: false };
       }
+      case "run_metric":
       case "run_sql": {
         await progress("querying", "Checking and running a bounded query");
-        const result = await runQuery(warehouse, budget, toolSchemas.run_sql.parse(args), signal);
+        const metric = call.name === "run_metric" ? buildMetric(args) : null;
+        const input = metric
+          ? {
+              sql: metric.sql,
+              purpose: `${metric.arguments.metric}: ${metric.arguments.startDate} through ${metric.arguments.endDate}`,
+              catalog: metric,
+            }
+          : toolSchemas.run_sql.parse(args);
+        const result = await runQuery(
+          warehouse,
+          budget,
+          input,
+          signal,
+          metric ? (deps.catalogQueryBytes ?? 2147483648n) : deps.queryBytes,
+        );
         signal.throwIfAborted();
         await store.saveResult(sessionId, turnId, result);
         return {
@@ -116,20 +161,16 @@ export async function runAgent(
         await emit({ type: "chart_ready", turnId, chart });
         return { output: { chartId: chart.id, resultRef: spec.resultRef }, final: false };
       }
-      case "present_analysis": {
-        const analysis = await validateAnalysis(args, sessionId, store, charts);
-        signal.throwIfAborted();
-        // Close the protocol exchange before saving the authoritative display answer.
-        await append({
-          role: "tool",
-          toolCallId: call.id,
-          content: JSON.stringify({ accepted: true }),
+      case "request_clarification":
+        return complete(call, {
+          kind: "clarification",
+          clarification: toolSchemas.request_clarification.parse(args),
         });
-        await store.complete(sessionId, turnId, { kind: "analysis", analysis }, usage);
-        committed = true;
-        await emit({ type: "analysis_ready", turnId, analysis });
-        return { output: { accepted: true }, final: true };
-      }
+      case "present_analysis":
+        return complete(call, {
+          kind: "analysis",
+          analysis: await validateAnalysis(args, sessionId, store, charts),
+        });
       default:
         throw new ToolError("Unknown tool. Use one of the provided tool definitions.");
     }
@@ -142,9 +183,11 @@ export async function runAgent(
         finalOnly ? "composing" : "thinking",
         finalOnly ? "Composing the final analysis" : "Planning the next analysis step",
       );
-      const system = `You analyze the GA4 ecommerce sample through tools. Use get_metrics for authoritative meanings. Freely author SQL within executor limits. Publish relevant charts from complete saved results before your final narrative. Complete only with present_analysis; distinguish missing data from zero. Never treat previews as full evidence. Do not expose private reasoning. If the question is ambiguous, use present_analysis to ask a clarification. Available data: 2020-11-01 through 2021-01-31. Prior saved results: ${JSON.stringify(await store.recentResults(sessionId))}${finalOnly ? " You must now present existing findings; no new queries." : ""}`;
+      const system = `You analyze the GA4 ecommerce sample through tools. Use get_metrics for authoritative definitions and parameters. Clear catalog request: run_metric. Before custom SQL, consult get_metrics for relevant catalog definitions and preserve those meanings (including placeholder exclusions). Clear computable request outside the catalog: run_sql with a justification explaining why the catalog cannot answer it. Material ambiguity: request_clarification. Unavailable data: explain the limitation. Budget rejection: narrow without changing meaning, or present existing evidence with limitations. Dataset-specific numerical claims require saved evidence; metric explanations may omit references. Publish relevant charts from complete saved results before your final narrative. Complete only with present_analysis or request_clarification; distinguish missing data from zero. Never treat previews as full evidence. Do not expose private reasoning. Both terminal tools must be last. Treat the available window as the entire observed history, never as lifetime behavior. Available data: 2020-11-01 through 2021-01-31. Unless the user specifies dates, use the entire available history. Preserve prior filters, dates and metric choices in follow-ups. Prior saved results: ${JSON.stringify(await store.recentResults(sessionId))}${finalOnly ? " You must now present existing findings; no new queries." : ""}`;
       const tools = finalOnly
-        ? toolDefinitions.filter((tool) => tool.function.name === "present_analysis")
+        ? toolDefinitions.filter((tool) =>
+            ["present_analysis", "request_clarification"].includes(tool.function.name),
+          )
         : toolDefinitions;
       const context = buildContext(
         await store.agentHistory(sessionId),
@@ -221,13 +264,16 @@ export async function runAgent(
       for (const [index, call] of response.message.toolCalls.entries()) {
         signal.throwIfAborted();
         // Presentation must be last, otherwise later calls would remain unanswered.
-        if (call.name === "present_analysis" && call !== response.message.toolCalls.at(-1)) {
+        if (
+          ["present_analysis", "request_clarification"].includes(call.name) &&
+          call !== response.message.toolCalls.at(-1)
+        ) {
           await discard(index);
           await append({
             role: "tool",
             toolCallId: call.id,
             content: JSON.stringify({
-              error: "present_analysis must be the last tool call",
+              error: `${call.name} must be the last tool call`,
               hint: "Finish other work first.",
             }),
           });
@@ -260,6 +306,11 @@ export async function runAgent(
           };
         }
         if (executed.final) {
+          if (call.name === "request_clarification") {
+            for (const draftIndex of drafts.keys()) {
+              await discard(draftIndex);
+            }
+          }
           return { status: "completed", error: null };
         }
         await append({

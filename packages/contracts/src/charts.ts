@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { resultDataSchema } from "./results.ts";
+import { resultScopeSchema } from "./metrics.ts";
 
 const chartBase = z.object({ title: z.string().min(1).max(200), resultRef: z.uuid() });
 const axes = chartBase.extend({ x: z.string().min(1), y: z.string().min(1) });
@@ -23,13 +24,20 @@ export const publishedChartSchema = z.object({
   id: z.uuid(),
   spec: chartSpecSchema,
   data: resultDataSchema,
+  scope: resultScopeSchema.default({ kind: "unspecified", topN: null }),
+  requiredCaveats: z
+    .array(z.string())
+    .default(["Analytical scope and definitions are unspecified for this saved chart."]),
 });
 export type PublishedChart = z.infer<typeof publishedChartSchema>;
 export const analysisSchema = z.object({
   narrative: z.string().min(1).max(16000),
-  caveats: z.array(z.string().max(1000)).max(10),
+  caveats: z.array(z.string().max(4000)).max(100),
   // Evidence references identify saved queries; chart IDs identify published visualizations.
   resultRefs: z.array(z.uuid()).max(5),
   chartIds: z.array(z.uuid()).max(4),
+});
+export const analysisRequestSchema = analysisSchema.extend({
+  caveats: z.array(z.string().max(1000)).max(10),
 });
 export type Analysis = z.infer<typeof analysisSchema>;

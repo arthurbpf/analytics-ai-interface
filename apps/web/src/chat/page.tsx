@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import type { Analysis } from "@analytics/contracts";
+import type { Analysis, Clarification } from "@analytics/contracts";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -34,6 +34,18 @@ import { ChartView } from "./charts.tsx";
 import { Markdown } from "./markdown.tsx";
 import { storageKey } from "./storage.ts";
 
+function ClarificationView({ clarification }: { clarification: Clarification }) {
+  return (
+    <div className="space-y-4">
+      <Markdown>{clarification.context}</Markdown>
+      <ol className="list-decimal space-y-2 pl-5">
+        {clarification.questions.map((question) => (
+          <li key={question}>{question}</li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 function AnalysisView({ analysis }: { analysis: Analysis }) {
   return (
     <div className="space-y-4">
@@ -370,6 +382,8 @@ export function ChatPage() {
                     </div>
                   ) : message.content.kind === "chart" ? (
                     <ChartView chart={message.content.chart} />
+                  ) : message.content.kind === "clarification" ? (
+                    <ClarificationView clarification={message.content.clarification} />
                   ) : (
                     <AnalysisView analysis={message.content.analysis} />
                   )}
@@ -405,6 +419,12 @@ export function ChatPage() {
                       </div>
                     </div>
                   )}
+                  {active.clarification &&
+                    !history?.messages.some(
+                      (message) =>
+                        message.turnId === active.turnId &&
+                        message.content.kind === "clarification",
+                    ) && <ClarificationView clarification={active.clarification} />}
                   {active.analysis &&
                     !history?.messages.some(
                       (message) =>

@@ -35,3 +35,20 @@ it("escapes content and keeps the selected table columns", () => {
     "purchases",
   ]);
 });
+
+it("shows saved top-N scope and required caveats before a final answer", () => {
+  const value = chart("table");
+  value.scope = {
+    kind: "top_n",
+    topN: {
+      by: "purchases",
+      requestedCount: 2,
+      returnedCount: 2,
+      groupCount: "5",
+      omittedGroupCount: "3",
+    },
+  };
+  value.requiredCaveats = ["Returned 2 of 5 groups; omitted 3."];
+  render(<ChartView chart={value} />);
+  expect(screen.getByText(value.requiredCaveats[0] ?? "")).toBeInTheDocument();
+});

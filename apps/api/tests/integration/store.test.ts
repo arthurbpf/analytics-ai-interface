@@ -152,3 +152,34 @@ it("answers a follow-up with persisted prior context and a fresh query", async (
   expect(sawContext).toBe(true);
   expect(executions).toBe(2);
 });
+
+it("persists clarification atomically as completed, retains artifacts and accepts a normal follow-up", async () => {
+  const s = await session();
+  const request = randomUUID();
+  const turn = await store.startTurn(s.id, request, "Compare customer frequency");
+  const data = { ...result, ref: randomUUID() };
+  await store.saveResult(s.id, turn.id, data);
+  const clarification = {
+    context: "Frequency needs a unit.",
+    questions: ["Purchase events or purchasing sessions?"],
+  };
+  await store.complete(s.id, turn.id, { kind: "clarification", clarification }, null);
+  const history = await store.history(s.id);
+  expect(history.turns[0]?.status).toBe("completed");
+  expect(history.messages.map((message) => message.content.kind)).toEqual([
+    "user",
+    "clarification",
+  ]);
+  expect(history.messages.at(-1)?.content).toEqual({ kind: "clarification", clarification });
+  expect(await store.result(s.id, data.ref)).toEqual(data);
+  await expect(store.startTurn(s.id, request, "Retry")).rejects.toMatchObject({
+    code: "duplicate_turn",
+  });
+  const next = await store.startTurn(s.id, randomUUID(), "Purchasing sessions");
+  expect(next.status).toBe("running");
+  const { buildContext } = await import("../../src/agent/context.ts");
+  expect(JSON.stringify(buildContext(await store.agentHistory(s.id), next.id, 0))).toContain(
+    clarification.questions[0],
+  );
+  await store.finish(next.id, "interrupted", null);
+});

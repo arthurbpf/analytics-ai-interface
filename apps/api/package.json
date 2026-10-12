@@ -13,7 +13,9 @@
     "test:integration": "node --env-file-if-exists=../../.env node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
     "test:e2e": "node --env-file-if-exists=../../.env node_modules/@playwright/test/cli.js test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate.ts"
+    "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate.ts",
+    "test:live": "node --env-file-if-exists=../../.env node_modules/vitest/vitest.mjs run --config vitest.live.config.ts",
+    "test:evaluation": "node --env-file-if-exists=../../.env node_modules/vitest/vitest.mjs run --config vitest.evaluation.config.ts"
   },
   "dependencies": {
     "@analytics/contracts": "workspace:*",

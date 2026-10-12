@@ -25,6 +25,7 @@ const { app, shutdown } = createApp({
   model: new OpenRouter(config.apiKey, config.model),
   warehouse: new BigQueryWarehouse(config.projectId),
   queryBytes: config.queryBytes,
+  catalogQueryBytes: config.catalogQueryBytes,
   turnBytes: config.turnBytes,
 });
 const server = app.listen(config.port, "127.0.0.1", () => {

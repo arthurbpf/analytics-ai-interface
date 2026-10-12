@@ -23,14 +23,21 @@ const envSchema = z.object({
   NODE_ENV: z.string().optional(),
   GOOGLE_CLOUD_PROJECT: z.string().min(1),
   PORT: positiveInteger.max(65535).default(3001),
+  CATALOG_QUERY_MAX_BYTES: z.string().regex(/^\d+$/).default("2147483648"),
   QUERY_MAX_BYTES: z.string().regex(/^\d+$/).default("1073741824"),
   TURN_MAX_BYTES: z.string().regex(/^\d+$/).default("5368709120"),
 });
 export function readConfig(env: NodeJS.ProcessEnv) {
   const value = envSchema.parse(env);
+  const catalogQueryBytes = BigInt(value.CATALOG_QUERY_MAX_BYTES);
   const queryBytes = BigInt(value.QUERY_MAX_BYTES);
   const turnBytes = BigInt(value.TURN_MAX_BYTES);
-  if (queryBytes <= 0n || turnBytes < queryBytes) {
+  if (
+    queryBytes <= 0n ||
+    catalogQueryBytes <= 0n ||
+    turnBytes < queryBytes ||
+    turnBytes < catalogQueryBytes
+  ) {
     throw new Error("Byte budgets must be positive; turn cap must be >= query cap");
   }
   const origin = new URL(value.APP_ORIGIN).origin;
@@ -52,6 +59,7 @@ export function readConfig(env: NodeJS.ProcessEnv) {
     projectId: value.GOOGLE_CLOUD_PROJECT,
     port: value.PORT,
     queryBytes,
+    catalogQueryBytes,
     turnBytes,
   };
 }

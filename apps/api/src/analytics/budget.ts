@@ -9,8 +9,8 @@ export class QueryBudget {
     this.maxCalls = maxCalls;
     this.remaining = perTurn;
   }
-  reserve(estimate: bigint): bigint {
-    const cap = this.remaining < this.perQuery ? this.remaining : this.perQuery;
+  reserve(estimate: bigint, perQuery = this.perQuery): bigint {
+    const cap = this.remaining < perQuery ? this.remaining : perQuery;
     if (this.calls >= this.maxCalls) {
       throw new ToolError("SQL submission budget exhausted. Present findings already obtained.");
     }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { metricRequestSchema, resultScopeSchema, queryParametersSchema } from "./metrics.ts";
 
 export const scalarSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]);
 export const columnSchema = z.object({
@@ -15,6 +16,18 @@ export const resultDataSchema = z.object({
 });
 export type ResultData = z.infer<typeof resultDataSchema>;
 export const queryResultSchema = resultDataSchema.extend({
+  origin: z.enum(["catalog", "adhoc"]).default("adhoc"),
+  catalog: z
+    .object({ arguments: metricRequestSchema, definition: z.string() })
+    .nullable()
+    .default(null),
+  parameters: queryParametersSchema.default({}),
+  justification: z.string().nullable().default(null),
+  requiredCaveats: z
+    .array(z.string())
+    .default(["Analytical scope and definitions are unspecified for this saved query."]),
+  dataQuality: z.record(z.string(), z.union([z.number(), z.string(), z.null()])).default({}),
+  scope: resultScopeSchema.default({ kind: "unspecified", topN: null }),
   ref: z.uuid(),
   sql: z.string(),
   purpose: z.string(),

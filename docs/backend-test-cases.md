@@ -15,33 +15,96 @@ Live checks are explicit, paid-service checks and do not run in the default suit
 | State     | Reload/restart preserves ordered display history and charts, while internal model/tool exchanges remain available only to the agent; follow-ups inherit definitions/filters and query afresh; omitted results remain retrievable; context preserves active tool pairs; concurrent turns conflict; duplicate request IDs never replay paid work; stale running turns become interrupted; failed persistence never emits success. |
 | HTTP/SSE  | Create/read sessions; bad requests fail before streaming; chart arrives while final answer is pending; browser parser handles fragmented UTF-8 frames; abort propagates to model and warehouse; failures emit terminal states; partial charts survive reload; completed answers stay completed after close; slow consumers respect backpressure.                                                                                |
 
-## Live checks
+## Catalog, clarification and live verification
 
-1. Totals: users, purchase-event count, USD revenue, and AOV versus reviewed canonical SQL.
-2. Daily revenue: values/date buckets versus canonical SQL and streamed chart rows.
-3. First-user source/medium revenue: verify attribution and totals.
-4. Device session conversion: verify session grain and denominator.
-5. Follow-up “show that weekly”: retain filters and metric; change aggregation.
-6. Broad request: verify byte-budget rejection/narrowing; record dry-run and billed bytes.
+The current harness keeps one agent and eight tools. `run_metric` exposes 18
+metrics, while guarded `run_sql` requires purpose/justification. Calendar dates,
+allowed dimensions/filters, steps and ranking columns are validated before query
+submission. Values are bound parameters; identifiers/operators are server-owned.
+SQL parsing/access checks, dry-run resource validation, result bounds and one
+cumulative warehouse ledger apply to both paths (2 GiB/catalog, 1 GiB/ad-hoc,
+5 GiB/turn). Catalog provenance is assigned by the server, with legacy defaults.
 
-Acceptance: all deterministic suites and workspace checks pass. Record live results
-when credentials are available; otherwise explicitly mark them unverified. Successful
-SQL execution alone does not prove analytical correctness.
+Deterministic checks cover hostile values, incompatible session/event filters,
+item defaults and event-revenue isolation, no implicit limit, identical inspection
+and execution parameters, full group counts and top-N selection completeness,
+legacy result/chart defaults, missing transport metadata on overflow, and shared
+cap reservation/settlement/unknown billing. Complete saved top-N selections can
+support only those groups; incomplete transport cannot ground final evidence.
+Charts retain scope/required limitations; presentation merges those limitations.
 
-## Verification status
+Clarification shares the completion transaction and status `completed` with
+analysis. Tests check both terminal tools on the last model step, dispatch of
+unavailable work, terminal-last ordering, persistence before success, draft
+removal, retained results/charts, duplicate IDs, reload, and a normal follow-up
+with clarification context. Browser tests exercise the production UI with scripted
+external services; they do not validate live analytics by themselves.
 
-On 2026-10-12, 54 Vitest unit tests, 5 PostgreSQL integration tests, and
-2 Playwright tests passed. API/contracts/web lint and API test type checking also
-passed. These results do not establish dedicated coverage of every acceptance
-case above or that the complete workspace check has passed.
+On 2026-10-12, the current deterministic checks passed: 119 API unit tests,
+37 web unit tests, 22 real PostgreSQL integration tests and 15 Playwright browser
+tests. Workspace formatting, lint, typecheck and production builds passed. Vite
+reports the existing large frontend bundle warning; deployment remains unverified.
 
-The browser suite checks invalid requests and actual browser SSE consumption:
-a chart precedes final narrative, disconnect interrupts the turn, saved
-history/result references survive reload, and duplicate IDs return 409.
-The production frontend is still a placeholder.
+Live verification commands (explicit paid/external checks):
 
-All six live checks remain unverified. Budget defaults are not calibrated against
-real BigQuery scans. Deployment and backup checks have not run.
+```sh
+pnpm --filter @analytics/api test:live
+pnpm --filter @analytics/api test:evaluation
+```
+
+[Live catalog results](live-catalog-results.json) distinguish vocabulary,
+independent observed values, catalog observations, adversarial SQL fixtures and
+36 query-shape estimates. Each observation records SQL, date scope, definition,
+rows, job ID and processed/billed bytes; estimates retain identical bound
+parameters. Full-window independent queries reproduce 5,692 purchase events,
+$362,165 recorded event revenue, 4,451 distinct valid transaction IDs, 906 invalid
+ID events, 326 repeated valid IDs, and 15 cross-user IDs with conflicting revenue
+across dates. Item vocabulary across all events is 1,394 IDs/431 names. Purchase
+items record quantity 22,720 and USD revenue $362,110, with 448 missing quantities
+and 448 missing item revenues; two purchase events have no item rows.
+
+Independent session-start/conversion and engagement checks use complete recorded
+session membership, not the historical activity-based monthly totals in
+[live-bigquery-results.json](live-bigquery-results.json). Adversarial SQL checks
+include cross-midnight membership, changing dimensions, timestamp ties, repeated
+purchase events, invalid IDs, checkout before/after purchase, unknown flags,
+single-event duration, absent engagement time, historical/prior versus later
+purchases, bucket-end purchaser classification, overlapping user groups,
+deterministic top-N ties, empty selections and missing item values.
+
+The largest of 36 representative weekly query estimates is 1,809,468,091 bytes
+(about 1.69 GiB), within the 2 GiB catalog cap. Full-history session construction
+requires the same scan for January and the entire reporting period. The current
+catalog uses a shared full-history event projection for every metric; narrower
+date arguments reduce qualifying rows but do not currently prune scanned tables.
+These estimates establish representative headroom, not that every permitted
+shape will fit; maximumBytesBilled and the remaining turn budget still govern
+execution.
+
+[Model evaluations](live-harness-evaluations.json) record model, correctness
+checks, unnecessary clarification, repair attempts, latency, usage, tool calls,
+answers and saved evidence for seven scenarios plus a follow-up: catalog revenue,
+top-N purchases, an ad-hoc conflict diagnostic, ambiguity, unavailable dates,
+metric explanation, a one-byte warehouse budget, and January-preserving weekly
+follow-up. All eight recorded cases pass the current rubric. Metric explanations
+and unavailable-data answers correctly omit evidence; dataset numerical findings
+reference saved results. Budget rejection preserves the requested dates/meaning.
+
+The [initial evaluation](live-harness-evaluations-initial.json) is retained to make
+its limitations reviewable: a custom diagnostic omitted known placeholder-ID
+exclusions and reported 16 rather than 15. The prompt/schema guidance was corrected
+to preserve catalog definitions in custom SQL. Two routing checks also rejected
+`event_counts` filtered to purchase events, despite its equivalence to purchase
+counts; the rubric now accepts that precisely filtered alternative. The initial
+ad-hoc definition error was found by narrative/SQL review, illustrating why valid
+references alone cannot prove analytical correctness.
+
+Remaining gaps: repeated/model-diverse evaluations, automatic verification of
+every narrative claim and derivative calculation, independent real-data references
+for every catalog metric/dimension/filter combination, broader malformed export
+fixtures (including repeated parameter keys), and deployed streaming/backup/retention
+checks. Single-run prompt success is evidence for these cases, not a correctness
+guarantee. No delegation comparison, embeddings or vector indexes are implemented.
 
 ## Identity, ownership, and titles
 

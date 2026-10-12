@@ -29,6 +29,8 @@ const builtins = new Set([
   "PARSE_DATE",
   "FORMAT_DATE",
   "DATE_TRUNC",
+  "WEEK",
+  "LEAST",
   "EXTRACT",
   "TIMESTAMP_MICROS",
   "TIMESTAMP_SECONDS",
