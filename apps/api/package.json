@@ -1,0 +1,21 @@
+{
+  "name": "@hockeystack/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint --type-aware --max-warnings 0 -c ../../.oxlintrc.json .",
+    "lint:fix": "oxlint --type-aware --max-warnings 0 -c ../../.oxlintrc.json --fix ."
+  },
+  "dependencies": {
+    "express": "5.3.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

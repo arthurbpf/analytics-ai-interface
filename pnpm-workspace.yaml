@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+
+catalog:
+  typescript: 7.0.2
+  "@types/node": ^24.0.0
+
+overrides:
+  typescript: 7.0.2
+
+strictPeerDependencies: true
+saveExact: true
