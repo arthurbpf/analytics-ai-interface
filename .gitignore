@@ -11,6 +11,7 @@ devenv.local.yaml
 
 # Node
 node_modules/
+packages/contracts/dist/
 
 # Local credentials and test artifacts
 .env
