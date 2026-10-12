@@ -1,3 +1,7 @@
+// oxlint-disable-next-line import/no-unassigned-import -- Vite loads the application stylesheet for its side effect.
+import "./index.css";
+import { idSchema } from "@analytics/contracts";
+import { ChatPage } from "./chat/page.tsx";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -12,7 +16,11 @@ const rootRoute = createRootRoute({ component: Outlet });
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: () => <h1>Data Analytics</h1>,
+  validateSearch: (search: Record<string, unknown>): { session?: string | undefined } => {
+    const parsed = idSchema.safeParse(search["session"]);
+    return { session: parsed.success ? parsed.data : undefined };
+  },
+  component: ChatPage,
 });
 const router = createRouter({ routeTree: rootRoute.addChildren([indexRoute]) });
 

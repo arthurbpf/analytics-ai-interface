@@ -16,13 +16,16 @@
     "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate.ts"
   },
   "dependencies": {
+    "@analytics/contracts": "workspace:*",
     "@google-cloud/bigquery": "9.2.0",
+    "@ts-rest/express": "3.53.0-rc.1",
     "drizzle-orm": "0.45.4",
+    "eventsource-parser": "4.1.1",
     "express": "5.3.0",
     "node-sql-parser": "5.4.0",
+    "partial-json": "0.1.7",
     "pg": "8.23.1",
-    "zod": "4.6.6",
-    "@analytics/contracts": "workspace:*"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

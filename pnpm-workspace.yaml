@@ -12,4 +12,4 @@ overrides:
 strictPeerDependencies: true
 saveExact: true
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true

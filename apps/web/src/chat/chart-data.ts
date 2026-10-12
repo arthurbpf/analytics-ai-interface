@@ -1,0 +1,56 @@
+import type { ChartSpec, ResultData } from "@analytics/contracts";
+
+const numbers = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
+export function formatCell(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+  if (typeof value === "number") {
+    return numbers.format(value);
+  }
+  return typeof value === "string" || typeof value === "boolean" ? String(value) : "—";
+}
+export function plotData(
+  spec: Extract<ChartSpec, { type: "bar" | "line" | "stacked_bar" }>,
+  data: ResultData,
+) {
+  if (spec.type !== "stacked_bar") {
+    return {
+      rows: data.rows.map((row) => ({ x: formatCell(row[spec.x]), s0: row[spec.y] ?? null })),
+      series: [{ key: "s0", label: spec.y }],
+      duplicate: false,
+    };
+  }
+  const labels = [...new Set(data.rows.map((row) => JSON.stringify(row[spec.series] ?? null)))];
+  const series = labels.map((value, index) => ({
+    key: `s${index}`,
+    label: formatCell(
+      data.rows.find((row) => JSON.stringify(row[spec.series] ?? null) === value)?.[spec.series],
+    ),
+  }));
+  const groups = new Map<string, Record<string, string | number | boolean | null>>();
+  const seen = new Set<string>();
+  for (const row of data.rows) {
+    const x = row[spec.x] ?? null;
+    const label = row[spec.series] ?? null;
+    const pair = JSON.stringify([x, label]);
+    if (seen.has(pair)) {
+      return { rows: [], series, duplicate: true };
+    }
+    seen.add(pair);
+    const groupKey = JSON.stringify(x);
+    let entry = groups.get(groupKey);
+    if (!entry) {
+      entry = { x: formatCell(x) };
+      for (const item of series) {
+        entry[item.key] = null;
+      }
+    }
+    const key = series[labels.indexOf(JSON.stringify(label))]?.key;
+    if (key) {
+      entry[key] = row[spec.y] ?? null;
+    }
+    groups.set(groupKey, entry);
+  }
+  return { rows: [...groups.values()], series, duplicate: false };
+}

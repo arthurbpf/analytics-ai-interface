@@ -2,8 +2,9 @@
 
 React + Vite + TanStack Router frontend and Node.js + Express backend, managed
 with pnpm workspaces and Turborepo. The backend implements durable analytics
-conversations and streamed chart/analysis artifacts. The frontend is still a
-placeholder; chat and visualization rendering remain to be implemented.
+conversations and streamed chart/analysis artifacts. The frontend provides a
+chat page with shadcn/ui Lyra components, saved sessions, and charts. JSON API
+requests use ts-rest contracts; narrative drafts and charts stream over SSE.
 
 ## Development
 
@@ -48,6 +49,7 @@ pnpm format         # Format supported files with Oxfmt
 nixfmt --check devenv.nix
 shellcheck .envrc
 pnpm --filter @analytics/api test
+pnpm --filter @analytics/web test
 pnpm --filter @analytics/api test:integration
 pnpm --filter @analytics/api test:e2e
 ```
@@ -99,8 +101,9 @@ these suites make no paid API calls. Outside devenv, install Chromium with
 `pnpm --filter @analytics/api exec playwright install chromium`, or set
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
-See [docs/backend-test-cases.md](docs/backend-test-cases.md) for acceptance cases
+See [docs/frontend-test-cases.md](docs/frontend-test-cases.md) for frontend coverage
+and [docs/backend-test-cases.md](docs/backend-test-cases.md) for acceptance cases
 and verification status. Live analytics accuracy and cost calibration remain
 unverified. Railway is the hosting target; deployment, backups, authentication,
-frontend rendering, and vector retrieval remain unimplemented. The current API
+and vector retrieval remain unimplemented. The current API
 binds to loopback and does not serve the built frontend.

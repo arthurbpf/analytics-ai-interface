@@ -6,7 +6,10 @@
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "types": ["vite/client", "node"],
     "jsx": "react-jsx",
-    "noEmit": true
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "*.config.ts"]
 }

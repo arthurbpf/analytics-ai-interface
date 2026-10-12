@@ -11,6 +11,13 @@ export const streamEventSchema = z.discriminatedUnion("type", [
     message: z.string(),
   }),
   eventBase.extend({ type: z.literal("chart_ready"), chart: publishedChartSchema }),
+  eventBase.extend({ type: z.literal("analysis_started"), draftId: idSchema }),
+  eventBase.extend({
+    type: z.literal("analysis_delta"),
+    draftId: idSchema,
+    delta: z.string().max(16000),
+  }),
+  eventBase.extend({ type: z.literal("analysis_discarded"), draftId: idSchema }),
   eventBase.extend({ type: z.literal("analysis_ready"), analysis: analysisSchema }),
   eventBase.extend({
     type: z.literal("turn_finished"),

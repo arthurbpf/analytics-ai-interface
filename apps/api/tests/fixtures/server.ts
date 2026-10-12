@@ -1,15 +1,113 @@
 import { setTimeout } from "node:timers/promises";
+import { randomUUID } from "node:crypto";
+import { analysisSchema, chartSpecSchema, type ChartSpec } from "@analytics/contracts";
 import { createApp } from "../../src/app.ts";
+import type { ModelClient } from "../../src/llm/openrouter.ts";
 import { testStore } from "./database.ts";
-import { fixtureModel, fixtureWarehouse } from "./analysis.ts";
+import { call, fixtureModel, fixtureWarehouse } from "./analysis.ts";
 
 const store = await testStore();
 await store.recover();
-const model = fixtureModel(async (signal) => { await setTimeout(60000, undefined, { signal }); });
-const backend = createApp({ store, model, warehouse: fixtureWarehouse(), queryBytes: 100n, turnBytes: 500n });
-const server = backend.app.listen(3101, "127.0.0.1");
-const finish = async () => { server.close(); await backend.shutdown(); await store.pool.end(); server.closeAllConnections(); };
-const stop = () => {
-  const task = finish(); task.then(() => { process.exitCode = 0; }, () => { process.exitCode = 1; });
+const scripted = fixtureModel();
+const model: ModelClient = {
+  complete: async (system, messages, tools, signal, update) => {
+    let prompt = "";
+    for (const message of messages) {
+      if (message.role === "user") {
+        prompt = message.content;
+      }
+    }
+    let response = await scripted.complete(system, messages, tools, signal);
+    const tool = response.message.toolCalls[0];
+    if (!tool) {
+      return response;
+    }
+    if (tool.name === "publish_chart") {
+      const raw: unknown = JSON.parse(tool.arguments);
+      const original = chartSpecSchema.parse(raw);
+      const base = { title: original.title, resultRef: original.resultRef };
+      let spec: ChartSpec;
+      if (prompt.includes("stacked")) {
+        spec = { ...base, type: "stacked_bar", x: "device", y: "purchases", series: "device" };
+      } else if (prompt.includes("line")) {
+        spec = { ...base, type: "line", x: "device", y: "purchases" };
+      } else if (prompt.includes("table")) {
+        spec = { ...base, type: "table", columns: ["device", "purchases"] };
+      } else if (prompt.includes("KPI")) {
+        spec = { ...base, type: "kpi", column: "purchases", row: 0 };
+      } else {
+        spec = { ...base, type: "bar", x: "device", y: "purchases" };
+      }
+      return call("publish_chart", spec);
+    }
+    if (tool.name !== "present_analysis") {
+      return response;
+    }
+    // Preserve the original transport test's pause before the narrative.
+    if (prompt === "Purchases by device") {
+      await setTimeout(60000, undefined, { signal });
+    }
+    if (
+      prompt.includes("Repair") &&
+      !messages.some(
+        (message) =>
+          message.role === "assistant" &&
+          message.toolCalls.some((candidate) => candidate.arguments.includes("Rejected draft")),
+      )
+    ) {
+      const raw: unknown = JSON.parse(tool.arguments);
+      response = call("present_analysis", {
+        ...analysisSchema.parse(raw),
+        narrative: "Rejected draft — incorrect evidence.",
+        chartIds: [randomUUID()],
+      });
+    }
+    const presentation = response.message.toolCalls[0];
+    if (!presentation) {
+      throw new Error("Missing presentation fixture");
+    }
+    for (let length = 12; length < presentation.arguments.length; length += 12) {
+      await update?.({
+        index: 0,
+        name: presentation.name,
+        arguments: presentation.arguments.slice(0, length),
+      });
+      await setTimeout(75, undefined, { signal });
+    }
+    await update?.({ index: 0, name: presentation.name, arguments: presentation.arguments });
+    if (prompt.includes("Hold")) {
+      await setTimeout(60000, undefined, { signal });
+    }
+    if (prompt.includes("Fail")) {
+      throw new Error("Scripted model failure");
+    }
+    return response;
+  },
 };
-process.once("SIGTERM", stop); process.once("SIGINT", stop);
+const backend = createApp({
+  store,
+  model,
+  warehouse: fixtureWarehouse(),
+  queryBytes: 100n,
+  turnBytes: 500n,
+});
+const server = backend.app.listen(3101, "127.0.0.1");
+const finish = async () => {
+  server.close();
+  await backend.shutdown();
+  await store.pool.end();
+  server.closeAllConnections();
+};
+const stop = () => {
+  const task = finish();
+  task.then(
+    () => {
+      process.exitCode = 0;
+    },
+    () => {
+      process.exitCode = 1;
+    },
+  );
+};
+process.once("SIGTERM", stop);
+process.once("SIGINT", stop);
