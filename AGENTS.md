@@ -1,0 +1,161 @@
+# Engineering principles
+
+Optimize for correct, minimal, maintainable code. Fewer lines that clearly solve
+the problem beat more lines that almost do.
+
+- Think before coding. State assumptions that would be expensive to unwind.
+  Ask when different interpretations lead to materially different work.
+  If something is unclear, stop and name exactly what is confusing.
+  Push back before implementing when a simpler approach exists.
+- Write only what the task requires. No speculative features, configurability,
+  single-use abstractions, premature generalization, or handling impossible errors.
+- Extract shared helpers when a change introduces near-duplicate logic, but do
+  not force reuse across layer boundaries or import heavy module graphs just to
+  share a small function. Explain correctly layered duplication when necessary.
+- Make surgical changes. Match surrounding style. Remove orphans created by the
+  change; leave pre-existing dead code alone and mention it.
+- Turn tasks into verifiable outcomes. Reproduce bugs before fixing them. For
+  multi-step work, explain the steps and their checks; skip plans for single edits.
+  Confirm tests before and after refactors. Use meaningful tests for validation
+  and bugs. Report failed or skipped checks honestly; never claim an unrun check
+  passed.
+- Base library behavior claims on official documentation, not dependency
+  internals. If documentation is silent, report the behavior as unsupported.
+- TypeScript: no `any`, `as unknown as`, `as never`, or type hacks. Use try/catch,
+  never `.catch(() => …)`. Use native Date or date-fns, never moment.
+- Delete removed code cleanly, without tombstone comments. Put rationale in the
+  commit message.
+- Prefer caution when speed and caution conflict, with judgment for trivial work.
+  Before finishing, simplify anything a senior engineer would call overcomplicated.
+
+# Project context
+
+The baseline design is in `../architecture.md`: a chat application analyzing
+the GA4 web ecommerce demo dataset in BigQuery, with narratives, visualizations,
+and multi-turn follow-ups. The decisions below supersede conflicting baseline
+proposals. They describe the intended implementation, not completed features.
+
+- Hand-roll the agent loop; no LangChain, LlamaIndex, or other agent framework.
+- Baseline stack: TypeScript, Node/Express, React/Vite with plain CSS and no UI
+  component library. The original brief's interpretation of React remains an
+  open question. Visualization libraries are allowed.
+- Keep a single agent and a small tool set initially. No multi-agent orchestration.
+
+# Agreed architecture decisions
+
+## Model and SQL
+
+- OpenRouter is the LLM vendor. Start with one configured model and a small
+  adapter; do not build a generic provider framework.
+- The model freely authors SQL using metric definitions and canonical examples
+  from the semantic layer. The application does not generate queries from a
+  fixed metric DSL.
+- The executor owns access checks and all execution limits. Prompt instructions
+  and semantic examples do not enforce correctness or spending limits.
+- Keep concrete, typed boundaries between the LLM adapter, semantic layer, query
+  executor, agent loop, and session store. Leave room for extension without a
+  plugin system or speculative abstractions.
+
+## Query and context budgets
+
+- Dry-run queries for estimates and useful rejection feedback, then enforce
+  `maximumBytesBilled` on actual execution under BigQuery on-demand pricing.
+- Enforce both per-query and cumulative per-turn warehouse budgets. Start with
+  sequential SQL execution; reserve budget before execution and reconcile with
+  actual billed bytes afterward. Calibrate thresholds using representative
+  dataset queries rather than inventing defaults.
+- Restrict execution to a single read-only query over the allowed GA4 dataset.
+  Reject scripts, writes, exports, and external execution. Credential permissions
+  are a backstop; regex checks alone are not a security boundary.
+- Bound rows, columns, serialized result size, total model context, model calls,
+  SQL executions, output tokens, and elapsed time. Warehouse and LLM spending
+  need separate accounting.
+- A SQL LIMIT controls returned rows, not scan cost. Timeouts/cancellation are
+  not a guaranteed cost ceiling.
+- Prefer complete bounded aggregate results. Oversized results must be clearly
+  marked as truncated, with schema/preview and guidance to narrow or aggregate.
+  Never present a preview as complete evidence.
+
+## Durable conversation state
+
+- Start with PostgreSQL, superseding the earlier in-memory and SQLite proposals.
+- Persist sessions, ordered messages (including tool calls/results), and bounded
+  query results. Store narrative, chart configuration, caveats, and result
+  references in structured assistant messages rather than a separate answers table.
+- Query records retain SQL, purpose, columns, rows, execution/billing metadata,
+  and an opaque reference scoped to the owning session.
+- Charts render the saved result; do not rerun a paid query just to draw a chart.
+- Save completed messages and tool results as a turn progresses. Mark interrupted
+  turns interrupted; do not automatically replay potentially paid work.
+- Saved history and model context are separate. Preserve history for display,
+  while constructing bounded context for each model call.
+- Provide a `get_result` tool when older results are omitted from model context.
+  A reference alone does not let the model inspect stored rows. New breakdowns
+  generally require new SQL, informed by prior SQL and metric choices.
+- Allow one active turn per session initially. Bound stored results and define
+  retention coherently so retained answers do not silently lose chart data.
+
+## Hosting and future vector retrieval
+
+- Target Railway with one Node app service and a separate PostgreSQL service in
+  the same project. Express serves the built frontend and chat/SSE API.
+- Keep OpenRouter and Google credentials server-side in environment variables.
+  Use a Dockerfile and environment configuration to keep deployment portable.
+- Use a pgvector-capable PostgreSQL image/template from the start, but do not
+  implement embeddings or vector indexes without a concrete retrieval use case.
+- Exact conversation/result retrieval uses relational tables. Future vectors may
+  support searching prior analyses, large metric catalogs, or business documents.
+- Configure database backups and verify hosted streaming and reload/follow-up
+  behavior before declaring deployment complete.
+- Fly.io is a viable alternative with more explicit machine configuration and a
+  Managed Postgres offering. Railway was selected to minimize deployment work.
+
+# Architecture review learnings
+
+- The baseline loop returns on detecting `present_analysis` before executing it.
+  Execute and validate presentation first; complete only on success, otherwise
+  feed errors back so the model can repair the answer.
+- Require structured presentation for successful completion rather than also
+  accepting a plain `end_turn` response as a completed analysis.
+- A digest of ten rows plus a result reference is insufficient for comprehensive
+  analysis without full bounded results or an explicit retrieval tool.
+- Define metric grain, denominators, attribution, and null handling. Canonical
+  SQL examples improve guidance but do not prove generated SQL is correct.
+- Prefer a small application-owned chart specification (type, result reference,
+  column mappings) that the frontend translates into the chosen library's format.
+  Validate mappings against actual saved columns. Chart library remains undecided.
+- Start with bounded history; add summarization only when needed. Summaries can
+  lose filters and metric choices necessary for follow-ups.
+- Successful SQL execution is not sufficient analytics validation. Check a small
+  representative set against known values or invariants, alongside loop and
+  guardrail tests.
+- Cost/access controls do not ensure analytical correctness. Preserve definitions
+  used, executed SQL, and result references so answers are reviewable.
+
+# Local environment
+
+`.envrc` uses the official devenv/direnv integration:
+
+```bash
+eval "$(devenv direnvrc)"
+use devenv
+```
+
+`devenv.nix` and `devenv.yaml` already exist. Installed devenv was 2.4.0 during
+this session. Bash syntax checks passed for `.envrc` and generated direnvrc;
+actual environment activation was not tested. Run `direnv allow` to authorize
+loading in a configured interactive shell.
+
+# Documentation references
+
+- BigQuery cost controls: https://docs.cloud.google.com/bigquery/docs/best-practices-costs
+- BigQuery timeout behavior: https://docs.cloud.google.com/bigquery/docs/reference/rest/v2/Job
+- Railway PostgreSQL: https://docs.railway.com/databases/postgresql
+- Railway pgvector: https://docs.railway.com/guides/embeddings-pipeline
+- Railway backups: https://docs.railway.com/guides/postgres-backups-restores
+- Fly Managed Postgres: https://fly.io/docs/mpg/
+- devenv direnv integration: https://devenv.sh/integrations/direnv/
+
+Hosting capabilities and pricing change; verify current official documentation
+when implementing deployment. No application implementation or deployment was
+performed during this architecture discussion.
