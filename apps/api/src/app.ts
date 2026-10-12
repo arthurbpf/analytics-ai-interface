@@ -7,6 +7,7 @@ import { generateTitle, type TitleClient } from "./llm/titles.ts";
 import { limits } from "./config.ts";
 import { RequestError, type Store } from "./db/store.ts";
 import { runAgent, type AgentDependencies } from "./agent/loop.ts";
+import type { Reviewer } from "./agent/review.ts";
 import { openStream } from "./http/stream.ts";
 
 const cookie = (request: Request, name: string) => {
@@ -20,6 +21,7 @@ const cookie = (request: Request, name: string) => {
 export function createApp(
   deps: AgentDependencies & {
     store: Store;
+    reviewer: Reviewer;
     origin?: string;
     secureCookies?: boolean;
     google?: GoogleLogin | undefined;

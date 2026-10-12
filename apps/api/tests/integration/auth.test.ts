@@ -8,7 +8,7 @@ import { AuthStore, hashToken, type GoogleLogin } from "../../src/auth.ts";
 import { authSessions, oauthAttempts, sessions, users } from "../../src/db/schema.ts";
 import type { Store } from "../../src/db/store.ts";
 import { testStore } from "../fixtures/database.ts";
-import { fixtureModel, fixtureWarehouse, result } from "../fixtures/analysis.ts";
+import { fixtureModel, fixtureReviewer, fixtureWarehouse, result } from "../fixtures/analysis.ts";
 
 let store: Store;
 let backend: ReturnType<typeof createApp>;
@@ -129,6 +129,7 @@ class Browser {
 beforeAll(async () => {
   store = await testStore();
   backend = createApp({
+    reviewer: fixtureReviewer(),
     store,
     google,
     origin,

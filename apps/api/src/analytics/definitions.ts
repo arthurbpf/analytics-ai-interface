@@ -1,6 +1,8 @@
 export const schemaGuidance = {
   dataset: "bigquery-public-data.ga4_obfuscated_sample_ecommerce",
   dates: { start: "2020-11-01", end: "2021-01-31" },
+  sqlDialect:
+    "BigQuery GoogleSQL: GROUP BY may reference SELECT aliases, which override corresponding FROM names. SELECT device.category AS device ... GROUP BY device groups by the category alias, not the source device struct.",
   fields: {
     event_date: "YYYYMMDD string",
     event_timestamp: "microsecond integer",

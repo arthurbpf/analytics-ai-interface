@@ -89,7 +89,7 @@ export async function validateAnalysis(
   for (const chartId of analysis.chartIds) {
     const chart = charts.find((candidate) => candidate.id === chartId);
     if (!chart) {
-      throw new ToolError("Final answer references an unpublished chart");
+      throw new ToolError("Final answer references an unprepared chart");
     }
     if (!analysis.resultRefs.includes(chart.spec.resultRef)) {
       throw new ToolError("Chart result must be included in final evidence references");

@@ -17,9 +17,11 @@ Narratives, drafts, and caveats render through react-markdown and remark-gfm, wi
 HTML/images disabled and the default safe URL handling. Tables/code scroll on narrow
 screens. User prompts render literally.
 
-Narrative drafts stream from `present_analysis` arguments. Drafts are provisional:
-failed validation removes them, and only validated presentations become saved
-answers. Tool arguments and internal model exchanges are not displayed.
+Narrative drafts and prepared charts remain private while the answer is generated
+and reviewed. Progress/activity events arrive immediately; approved narratives and
+selected charts publish together after persistence. Rejected, failed, or interrupted
+candidates never appear live or after reload. Legacy draft event handling remains
+compatible with client fixtures. Tool arguments and review records stay private.
 
 ## Automated coverage
 
@@ -33,13 +35,14 @@ answers. Tool arguments and internal model exchanges are not displayed.
   values, dates, empty data, stacked series alignment, duplicate stacked mappings,
   accessible tables, caveats, and truncation warnings.
 - API units cover fragmented and interleaved model streaming, usage reporting,
-  bounded input, malformed or interrupted streams, cancellation, draft rejection
+  bounded input, malformed or interrupted streams, cancellation, review rejection
   and repair, and persisted presentation validation.
 - PostgreSQL integration tests verify persistence and API behavior against a real
   database.
-- Fourteen Chromium tests run the production frontend against a scripted model and
-  real PostgreSQL. They cover incremental draft/chart display, persisted reload
-  and follow-ups, background sessions, Stop, rejected drafts, model failure,
+- Eighteen Chromium tests run the production frontend against a scripted model and
+  real PostgreSQL. They cover progress followed by approved output, persisted reload
+  and follow-ups, background sessions, Stop, private rejected candidates, model failure,
+  delayed review, repeated review rejection,
   simultaneous chats, all chart types, mobile sidebar, keyboard submission, input
   limits, escaped user content, Markdown safety/overflow, invalid URLs, missing chats,
   and logout followed by another guest attempting to open the previous chat.

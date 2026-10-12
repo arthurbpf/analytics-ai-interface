@@ -1,0 +1,1670 @@
+{
+  "evaluatedAt": "2026-10-12T23:34:38.242Z",
+  "model": "openai/gpt-5.6-luna",
+  "reviewerModel": "openai/gpt-5.6-luna",
+  "mode": "reviewed",
+  "project": "analytics-hs-511417",
+  "assessment": "Automatic routing, evidence and parameter checks; narratives retained for manual analytical review. Reference validation alone does not prove grounding.",
+  "cases": [
+    {
+      "name": "catalog",
+      "prompt": "What was recorded USD purchase-event revenue over the entire available history?",
+      "metric": "revenue",
+      "numerical": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "checks": {
+        "completed": true,
+        "expectedRouting": true,
+        "adhocDefinition": true,
+        "evidence": true,
+        "unnecessaryClarification": false,
+        "limitedScope": true,
+        "preservedDates": true,
+        "unavailable": true,
+        "explanationWithoutEvidence": true,
+        "budget": true,
+        "canonicalValue": true
+      },
+      "taskCoverage": "not_assessed",
+      "correctness": true,
+      "repairAttempts": 0,
+      "repairSqlSubmissions": 0,
+      "latencyMs": 22004,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 16308,
+        "outputTokens": 382,
+        "cost": 0.00330557,
+        "analyst": {
+          "modelCalls": 3,
+          "inputTokens": 9189,
+          "outputTokens": 267,
+          "cost": 0.0013939199999999999
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 7119,
+          "outputTokens": 115,
+          "cost": 0.00191165
+        }
+      },
+      "calls": [
+        {
+          "id": "call_BDorNBIwad89fbop6QcyWarc",
+          "name": "get_metrics",
+          "arguments": "{\"name\":\"revenue\"}"
+        },
+        {
+          "id": "call_nOIgqDuCm7dkP8F9jgi2GSul",
+          "name": "run_metric",
+          "arguments": "{\"metric\":\"revenue\",\"startDate\":\"2020-11-01\",\"endDate\":\"2021-01-31\",\"dimensions\":[],\"filters\":[]}"
+        },
+        {
+          "id": "call_SzRUs4KMZ84cvbSG6aqN4mFI",
+          "name": "present_analysis",
+          "arguments": "{\"narrative\":\"Recorded USD purchase-event revenue over the entire available history (November 1, 2020 through January 31, 2021) was **$362,165.00**. There were **0 purchase events with missing revenue** in the requested period.\",\"caveats\":[\"This covers the available obfuscated sample history only, not production GA4 or lifetime customer behavior.\",\"This is recorded USD revenue from purchase events; missing revenue contributes nothing and is counted separately.\"],\"resultRefs\":[\"2585c1f1-1a15-495a-b098-dfe5af866689\"],\"chartIds\":[]}"
+        }
+      ],
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Recorded USD purchase-event revenue over the entire available history (November 1, 2020 through January 31, 2021) was **$362,165.00**. There were **0 purchase events with missing revenue** in the requested period.",
+            "caveats": [
+              "This covers the available obfuscated sample history only, not production GA4 or lifetime customer behavior.",
+              "This is recorded USD revenue from purchase events; missing revenue contributes nothing and is counted separately.",
+              "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+              "Recorded USD purchase-event revenue; missing revenue contributes nothing and is counted separately.",
+              "Data-quality counts across the full requested breakdown before ranking: Missing revenue events: 0."
+            ],
+            "resultRefs": ["2585c1f1-1a15-495a-b098-dfe5af866689"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2949,
+          "usage": {
+            "inputTokens": 7119,
+            "outputTokens": 115,
+            "cost": 0.00191165
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Recorded USD purchase-event revenue over the entire available history (November 1, 2020 through January 31, 2021) was **$362,165.00**. There were **0 purchase events with missing revenue** in the requested period.",
+          "caveats": [
+            "This covers the available obfuscated sample history only, not production GA4 or lifetime customer behavior.",
+            "This is recorded USD revenue from purchase events; missing revenue contributes nothing and is counted separately.",
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Recorded USD purchase-event revenue; missing revenue contributes nothing and is counted separately.",
+            "Data-quality counts across the full requested breakdown before ranking: Missing revenue events: 0."
+          ],
+          "resultRefs": ["2585c1f1-1a15-495a-b098-dfe5af866689"],
+          "chartIds": []
+        }
+      },
+      "results": [
+        {
+          "columns": [
+            {
+              "name": "revenue",
+              "type": "number",
+              "display": {
+                "label": "Recorded revenue",
+                "format": "usd"
+              }
+            },
+            {
+              "name": "missing_revenue_events",
+              "type": "number",
+              "display": {
+                "label": "Missing revenue events",
+                "format": "integer"
+              }
+            }
+          ],
+          "rows": [
+            {
+              "revenue": 362165,
+              "missing_revenue_events": 0
+            }
+          ],
+          "complete": true,
+          "totalRows": "1",
+          "origin": "catalog",
+          "catalog": {
+            "arguments": {
+              "metric": "revenue",
+              "startDate": "2020-11-01",
+              "endDate": "2021-01-31",
+              "dimensions": [],
+              "filters": []
+            },
+            "definition": "Recorded USD purchase-event revenue; missing revenue contributes nothing and is counted separately."
+          },
+          "parameters": {
+            "start": "20201101",
+            "end": "20210131"
+          },
+          "justification": null,
+          "requiredCaveats": [
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Recorded USD purchase-event revenue; missing revenue contributes nothing and is counted separately.",
+            "Data-quality counts across the full requested breakdown before ranking: Missing revenue events: 0."
+          ],
+          "dataQuality": {
+            "missing_revenue_events": 0
+          },
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "2585c1f1-1a15-495a-b098-dfe5af866689",
+          "sql": "WITH events AS (SELECT event_date, event_timestamp, event_name, user_pseudo_id,\n  device.category AS device, geo.country AS country, traffic_source.source AS source, traffic_source.medium AS medium,\n  ecommerce.purchase_revenue_in_usd AS revenue, ecommerce.transaction_id AS transaction_id, items,\n  (SELECT MAX(value.int_value) FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS session_id,\n  (SELECT MAX(SAFE_CAST(COALESCE(CAST(value.int_value AS STRING), value.string_value) AS INT64)) FROM UNNEST(event_params) WHERE key = 'session_engaged' AND COALESCE(CAST(value.int_value AS STRING), value.string_value) IN ('0', '1')) AS engaged_flag,\n  (SELECT SUM(COALESCE(value.int_value, SAFE_CAST(value.string_value AS INT64))) FROM UNNEST(event_params) WHERE key = 'engagement_time_msec') AS engagement_time\nFROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20210131'), aggregated AS (SELECT COALESCE(SUM(revenue), 0) AS revenue, COUNTIF(revenue IS NULL) AS missing_revenue_events FROM events WHERE event_date BETWEEN @start AND @end AND event_name = 'purchase'), totals AS (SELECT COUNT(*) AS _group_count, COALESCE(SUM(missing_revenue_events), 0) AS _quality_missing_revenue_events FROM aggregated), selection AS (SELECT *, 1 AS _present FROM aggregated) SELECT selection.*, totals.* FROM totals LEFT JOIN selection ON TRUE",
+          "purpose": "revenue: 2020-11-01 through 2021-01-31",
+          "jobId": "4118c4a4-b02e-4d6e-8ec3-be518bdcf17e",
+          "bytesProcessed": "98955937",
+          "bytesBilled": "99614720"
+        }
+      ]
+    },
+    {
+      "name": "topN",
+      "prompt": "Show the top 2 device categories by purchase-event count in January 2021.",
+      "metric": "purchases",
+      "numerical": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "checks": {
+        "completed": true,
+        "expectedRouting": true,
+        "adhocDefinition": true,
+        "evidence": true,
+        "unnecessaryClarification": false,
+        "limitedScope": true,
+        "preservedDates": true,
+        "unavailable": true,
+        "explanationWithoutEvidence": true,
+        "budget": true,
+        "canonicalValue": true
+      },
+      "taskCoverage": "not_assessed",
+      "correctness": true,
+      "repairAttempts": 0,
+      "repairSqlSubmissions": 0,
+      "latencyMs": 21712,
+      "usage": {
+        "modelCalls": 5,
+        "inputTokens": 20937,
+        "outputTokens": 654,
+        "cost": 0.00393948,
+        "analyst": {
+          "modelCalls": 4,
+          "inputTokens": 13190,
+          "outputTokens": 511,
+          "cost": 0.00183723
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 7747,
+          "outputTokens": 143,
+          "cost": 0.00210225
+        }
+      },
+      "calls": [
+        {
+          "id": "call_FlmWa45a6puk2NbvW7SsEXJF",
+          "name": "get_metrics",
+          "arguments": "{\"name\":\"event_counts\"}"
+        },
+        {
+          "id": "call_XlZQ4aOW3A7LLH30gHyAAjnI",
+          "name": "run_metric",
+          "arguments": "{\"metric\":\"event_counts\",\"startDate\":\"2021-01-01\",\"endDate\":\"2021-01-31\",\"dimensions\":[\"device\",\"event_name\"],\"filters\":[{\"field\":\"event_name\",\"op\":\"eq\",\"value\":\"purchase\"}],\"topN\":{\"by\":\"event_count\",\"count\":2}}"
+        },
+        {
+          "id": "call_XCCcYWgEF7vzC24FRQVaedtu",
+          "name": "publish_chart",
+          "arguments": "{\"title\":\"Top 2 devices by purchase-event count \u2014 January 2021\",\"resultRef\":\"cb23841d-d24d-4925-822c-015efb0e9799\",\"type\":\"table\",\"columns\":[\"device\",\"event_count\"]}"
+        },
+        {
+          "id": "call_Wm7QRXUY8wY7rHIb2JvE529G",
+          "name": "present_analysis",
+          "arguments": "{\"narrative\":\"In January 2021, the top two device categories by purchase-event count were:\\n\\n1. **Desktop:** 667 purchase events\\n2. **Mobile:** 508 purchase events\\n\\nDesktop recorded 159 more purchase events than mobile. The prepared table chart shows these ranked results.\",\"caveats\":[\"This covers January 1\u201331, 2021 in the available obfuscated sample history, not lifetime or production GA4 behavior.\",\"The results include the top 2 of 3 device groups; one additional device group is omitted by the requested top-2 selection.\",\"These are purchase-event counts, not unique purchasers or transactions.\"],\"resultRefs\":[\"cb23841d-d24d-4925-822c-015efb0e9799\"],\"chartIds\":[\"84075a44-9870-4660-8292-564198411bc8\"]}"
+        }
+      ],
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "In January 2021, the top two device categories by purchase-event count were:\n\n1. **Desktop:** 667 purchase events\n2. **Mobile:** 508 purchase events\n\nDesktop recorded 159 more purchase events than mobile. The prepared table chart shows these ranked results.",
+            "caveats": [
+              "This covers January 1\u201331, 2021 in the available obfuscated sample history, not lifetime or production GA4 behavior.",
+              "The results include the top 2 of 3 device groups; one additional device group is omitted by the requested top-2 selection.",
+              "These are purchase-event counts, not unique purchasers or transactions.",
+              "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+              "Event counts grouped by event name.",
+              "Top 2 groups ranked by Event count; evidence supports only this selection, not the whole breakdown.",
+              "Returned 2 of 3 groups; omitted 1."
+            ],
+            "resultRefs": ["cb23841d-d24d-4925-822c-015efb0e9799"],
+            "chartIds": ["84075a44-9870-4660-8292-564198411bc8"]
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2605,
+          "usage": {
+            "inputTokens": 7747,
+            "outputTokens": 143,
+            "cost": 0.00210225
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "In January 2021, the top two device categories by purchase-event count were:\n\n1. **Desktop:** 667 purchase events\n2. **Mobile:** 508 purchase events\n\nDesktop recorded 159 more purchase events than mobile. The prepared table chart shows these ranked results.",
+          "caveats": [
+            "This covers January 1\u201331, 2021 in the available obfuscated sample history, not lifetime or production GA4 behavior.",
+            "The results include the top 2 of 3 device groups; one additional device group is omitted by the requested top-2 selection.",
+            "These are purchase-event counts, not unique purchasers or transactions.",
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Event counts grouped by event name.",
+            "Top 2 groups ranked by Event count; evidence supports only this selection, not the whole breakdown.",
+            "Returned 2 of 3 groups; omitted 1."
+          ],
+          "resultRefs": ["cb23841d-d24d-4925-822c-015efb0e9799"],
+          "chartIds": ["84075a44-9870-4660-8292-564198411bc8"]
+        }
+      },
+      "results": [
+        {
+          "columns": [
+            {
+              "name": "device",
+              "type": "string",
+              "display": {
+                "label": "Device"
+              }
+            },
+            {
+              "name": "event_name",
+              "type": "string",
+              "display": {
+                "label": "Event name"
+              }
+            },
+            {
+              "name": "event_count",
+              "type": "number",
+              "display": {
+                "label": "Event count",
+                "format": "integer"
+              }
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "event_name": "purchase",
+              "event_count": 667
+            },
+            {
+              "device": "mobile",
+              "event_name": "purchase",
+              "event_count": 508
+            }
+          ],
+          "complete": true,
+          "totalRows": "2",
+          "origin": "catalog",
+          "catalog": {
+            "arguments": {
+              "metric": "event_counts",
+              "startDate": "2021-01-01",
+              "endDate": "2021-01-31",
+              "dimensions": ["device", "event_name"],
+              "filters": [
+                {
+                  "field": "event_name",
+                  "op": "eq",
+                  "value": "purchase"
+                }
+              ],
+              "topN": {
+                "by": "event_count",
+                "count": 2
+              }
+            },
+            "definition": "Event counts grouped by event name."
+          },
+          "parameters": {
+            "start": "20210101",
+            "end": "20210131",
+            "filter_0": "purchase",
+            "top_count": 2
+          },
+          "justification": null,
+          "requiredCaveats": [
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Event counts grouped by event name.",
+            "Top 2 groups ranked by Event count; evidence supports only this selection, not the whole breakdown.",
+            "Returned 2 of 3 groups; omitted 1."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "top_n",
+            "topN": {
+              "by": "event_count",
+              "requestedCount": 2,
+              "returnedCount": 2,
+              "groupCount": "3",
+              "omittedGroupCount": "1"
+            }
+          },
+          "ref": "cb23841d-d24d-4925-822c-015efb0e9799",
+          "sql": "WITH events AS (SELECT event_date, event_timestamp, event_name, user_pseudo_id,\n  device.category AS device, geo.country AS country, traffic_source.source AS source, traffic_source.medium AS medium,\n  ecommerce.purchase_revenue_in_usd AS revenue, ecommerce.transaction_id AS transaction_id, items,\n  (SELECT MAX(value.int_value) FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS session_id,\n  (SELECT MAX(SAFE_CAST(COALESCE(CAST(value.int_value AS STRING), value.string_value) AS INT64)) FROM UNNEST(event_params) WHERE key = 'session_engaged' AND COALESCE(CAST(value.int_value AS STRING), value.string_value) IN ('0', '1')) AS engaged_flag,\n  (SELECT SUM(COALESCE(value.int_value, SAFE_CAST(value.string_value AS INT64))) FROM UNNEST(event_params) WHERE key = 'engagement_time_msec') AS engagement_time\nFROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20210131'), aggregated AS (SELECT device, event_name, COUNT(*) AS event_count FROM events WHERE event_date BETWEEN @start AND @end AND event_name = @filter_0 GROUP BY device, event_name), totals AS (SELECT COUNT(*) AS _group_count FROM aggregated), selection AS (SELECT *, 1 AS _present FROM aggregated ORDER BY event_count DESC, device ASC, event_name ASC LIMIT @top_count) SELECT selection.*, totals.* FROM totals LEFT JOIN selection ON TRUE ORDER BY event_count DESC, device ASC, event_name ASC",
+          "purpose": "event_counts: 2021-01-01 through 2021-01-31",
+          "jobId": "f4824179-0b90-48cc-9360-17b4b1235f56",
+          "bytesProcessed": "135773403",
+          "bytesBilled": "136314880"
+        }
+      ]
+    },
+    {
+      "name": "filter-preserving-followup",
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Weekly purchase-event counts for January 2021, split across all device categories (no top-N limit):\n\n| Week starting | Desktop | Mobile | Tablet |\n|---|---:|---:|---:|\n| December 28, 2020* | 19 | 21 | 2 |\n| January 4, 2021 | 106 | 61 | 3 |\n| January 11, 2021 | 143 | 106 | 5 |\n| January 18, 2021 | 229 | 157 | 9 |\n| January 25, 2021 | 170 | 163 | 10 |\n\nDesktop led each full January week. Purchase-event volume peaked in the week starting January 18, with 395 events across devices, followed by 343 events in the week starting January 25. The prepared stacked-bar chart visualizes the weekly device breakdown.",
+          "caveats": [
+            "The December 28, 2020 week is included because it contains January 1\u20133; counts are filtered to January dates only, not the full calendar week.",
+            "Weeks start on Monday.",
+            "These are purchase-event counts, not unique purchasers or transactions.",
+            "This covers January 1\u201331, 2021 in the available obfuscated sample history, not lifetime or production GA4 behavior.",
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Event counts grouped by event name."
+          ],
+          "resultRefs": ["b88db5a1-a47c-4221-8ca0-96695713ab13"],
+          "chartIds": ["09caa385-5be9-4f89-92c5-4a26c3e1bd93"]
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Weekly purchase-event counts for January 2021, split across all device categories (no top-N limit):\n\n| Week starting | Desktop | Mobile | Tablet |\n|---|---:|---:|---:|\n| December 28, 2020* | 19 | 21 | 2 |\n| January 4, 2021 | 106 | 61 | 3 |\n| January 11, 2021 | 143 | 106 | 5 |\n| January 18, 2021 | 229 | 157 | 9 |\n| January 25, 2021 | 170 | 163 | 10 |\n\nDesktop led each full January week. Purchase-event volume peaked in the week starting January 18, with 395 events across devices, followed by 343 events in the week starting January 25. The prepared stacked-bar chart visualizes the weekly device breakdown.",
+            "caveats": [
+              "The December 28, 2020 week is included because it contains January 1\u20133; counts are filtered to January dates only, not the full calendar week.",
+              "Weeks start on Monday.",
+              "These are purchase-event counts, not unique purchasers or transactions.",
+              "This covers January 1\u201331, 2021 in the available obfuscated sample history, not lifetime or production GA4 behavior.",
+              "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+              "Event counts grouped by event name."
+            ],
+            "resultRefs": ["b88db5a1-a47c-4221-8ca0-96695713ab13"],
+            "chartIds": ["09caa385-5be9-4f89-92c5-4a26c3e1bd93"]
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 5315,
+          "usage": {
+            "inputTokens": 10131,
+            "outputTokens": 295,
+            "cost": 0.00288065
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "columns": [
+            {
+              "name": "week",
+              "type": "date",
+              "display": {
+                "label": "Week starting"
+              }
+            },
+            {
+              "name": "device",
+              "type": "string",
+              "display": {
+                "label": "Device"
+              }
+            },
+            {
+              "name": "event_name",
+              "type": "string",
+              "display": {
+                "label": "Event name"
+              }
+            },
+            {
+              "name": "event_count",
+              "type": "number",
+              "display": {
+                "label": "Event count",
+                "format": "integer"
+              }
+            }
+          ],
+          "rows": [
+            {
+              "week": "2020-12-28",
+              "device": "desktop",
+              "event_name": "purchase",
+              "event_count": 19
+            },
+            {
+              "week": "2020-12-28",
+              "device": "mobile",
+              "event_name": "purchase",
+              "event_count": 21
+            },
+            {
+              "week": "2020-12-28",
+              "device": "tablet",
+              "event_name": "purchase",
+              "event_count": 2
+            },
+            {
+              "week": "2021-01-04",
+              "device": "desktop",
+              "event_name": "purchase",
+              "event_count": 106
+            },
+            {
+              "week": "2021-01-04",
+              "device": "mobile",
+              "event_name": "purchase",
+              "event_count": 61
+            },
+            {
+              "week": "2021-01-04",
+              "device": "tablet",
+              "event_name": "purchase",
+              "event_count": 3
+            },
+            {
+              "week": "2021-01-11",
+              "device": "desktop",
+              "event_name": "purchase",
+              "event_count": 143
+            },
+            {
+              "week": "2021-01-11",
+              "device": "mobile",
+              "event_name": "purchase",
+              "event_count": 106
+            },
+            {
+              "week": "2021-01-11",
+              "device": "tablet",
+              "event_name": "purchase",
+              "event_count": 5
+            },
+            {
+              "week": "2021-01-18",
+              "device": "desktop",
+              "event_name": "purchase",
+              "event_count": 229
+            },
+            {
+              "week": "2021-01-18",
+              "device": "mobile",
+              "event_name": "purchase",
+              "event_count": 157
+            },
+            {
+              "week": "2021-01-18",
+              "device": "tablet",
+              "event_name": "purchase",
+              "event_count": 9
+            },
+            {
+              "week": "2021-01-25",
+              "device": "desktop",
+              "event_name": "purchase",
+              "event_count": 170
+            },
+            {
+              "week": "2021-01-25",
+              "device": "mobile",
+              "event_name": "purchase",
+              "event_count": 163
+            },
+            {
+              "week": "2021-01-25",
+              "device": "tablet",
+              "event_name": "purchase",
+              "event_count": 10
+            }
+          ],
+          "complete": true,
+          "totalRows": "15",
+          "origin": "catalog",
+          "catalog": {
+            "arguments": {
+              "metric": "event_counts",
+              "startDate": "2021-01-01",
+              "endDate": "2021-01-31",
+              "dimensions": ["device", "event_name"],
+              "grain": "week",
+              "filters": [
+                {
+                  "field": "event_name",
+                  "op": "eq",
+                  "value": "purchase"
+                }
+              ]
+            },
+            "definition": "Event counts grouped by event name."
+          },
+          "parameters": {
+            "start": "20210101",
+            "end": "20210131",
+            "filter_0": "purchase"
+          },
+          "justification": null,
+          "requiredCaveats": [
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Event counts grouped by event name."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "b88db5a1-a47c-4221-8ca0-96695713ab13",
+          "sql": "WITH events AS (SELECT event_date, event_timestamp, event_name, user_pseudo_id,\n  device.category AS device, geo.country AS country, traffic_source.source AS source, traffic_source.medium AS medium,\n  ecommerce.purchase_revenue_in_usd AS revenue, ecommerce.transaction_id AS transaction_id, items,\n  (SELECT MAX(value.int_value) FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS session_id,\n  (SELECT MAX(SAFE_CAST(COALESCE(CAST(value.int_value AS STRING), value.string_value) AS INT64)) FROM UNNEST(event_params) WHERE key = 'session_engaged' AND COALESCE(CAST(value.int_value AS STRING), value.string_value) IN ('0', '1')) AS engaged_flag,\n  (SELECT SUM(COALESCE(value.int_value, SAFE_CAST(value.string_value AS INT64))) FROM UNNEST(event_params) WHERE key = 'engagement_time_msec') AS engagement_time\nFROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20210131'), aggregated AS (SELECT DATE_TRUNC(PARSE_DATE('%Y%m%d', event_date), WEEK(MONDAY)) AS week, device, event_name, COUNT(*) AS event_count FROM events WHERE event_date BETWEEN @start AND @end AND event_name = @filter_0 GROUP BY week, device, event_name), totals AS (SELECT COUNT(*) AS _group_count FROM aggregated), selection AS (SELECT *, 1 AS _present FROM aggregated ORDER BY week ASC, device ASC, event_name ASC) SELECT selection.*, totals.* FROM totals LEFT JOIN selection ON TRUE ORDER BY week ASC, device ASC, event_name ASC",
+          "purpose": "event_counts: 2021-01-01 through 2021-01-31",
+          "jobId": "432c87e7-0764-43fc-ad0c-33d6245df7f3",
+          "bytesProcessed": "135773403",
+          "bytesBilled": "136314880"
+        }
+      ],
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 26034,
+        "outputTokens": 992,
+        "cost": 0.005525840000000001,
+        "analyst": {
+          "modelCalls": 3,
+          "inputTokens": 15903,
+          "outputTokens": 697,
+          "cost": 0.0026451900000000004
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 10131,
+          "outputTokens": 295,
+          "cost": 0.00288065
+        }
+      },
+      "calls": [
+        {
+          "id": "call_P13caGvnLK7rtyPYgX4s3bnh",
+          "name": "run_metric",
+          "arguments": "{\"metric\":\"event_counts\",\"startDate\":\"2021-01-01\",\"endDate\":\"2021-01-31\",\"dimensions\":[\"device\",\"event_name\"],\"grain\":\"week\",\"filters\":[{\"field\":\"event_name\",\"op\":\"eq\",\"value\":\"purchase\"}]}"
+        },
+        {
+          "id": "call_Rmyhr8DJs8nukl119WvvvsRm",
+          "name": "publish_chart",
+          "arguments": "{\"title\":\"Weekly purchase events by device \u2014 January 2021\",\"resultRef\":\"b88db5a1-a47c-4221-8ca0-96695713ab13\",\"type\":\"stacked_bar\",\"x\":\"week\",\"y\":\"event_count\",\"series\":\"device\"}"
+        },
+        {
+          "id": "call_MAFMChFAQJbYJ2kzbC4vds3N",
+          "name": "present_analysis",
+          "arguments": "{\"narrative\":\"Weekly purchase-event counts for January 2021, split across all device categories (no top-N limit):\\n\\n| Week starting | Desktop | Mobile | Tablet |\\n|---|---:|---:|---:|\\n| December 28, 2020* | 19 | 21 | 2 |\\n| January 4, 2021 | 106 | 61 | 3 |\\n| January 11, 2021 | 143 | 106 | 5 |\\n| January 18, 2021 | 229 | 157 | 9 |\\n| January 25, 2021 | 170 | 163 | 10 |\\n\\nDesktop led each full January week. Purchase-event volume peaked in the week starting January 18, with 395 events across devices, followed by 343 events in the week starting January 25. The prepared stacked-bar chart visualizes the weekly device breakdown.\",\"caveats\":[\"The December 28, 2020 week is included because it contains January 1\u20133; counts are filtered to January dates only, not the full calendar week.\",\"Weeks start on Monday.\",\"These are purchase-event counts, not unique purchasers or transactions.\",\"This covers January 1\u201331, 2021 in the available obfuscated sample history, not lifetime or production GA4 behavior.\"],\"resultRefs\":[\"b88db5a1-a47c-4221-8ca0-96695713ab13\"],\"chartIds\":[\"09caa385-5be9-4f89-92c5-4a26c3e1bd93\"]}"
+        }
+      ],
+      "latencyMs": 24054,
+      "repairAttempts": 0,
+      "unnecessaryClarification": false,
+      "correctness": true
+    },
+    {
+      "name": "adhoc",
+      "prompt": "How many valid transaction IDs occur on purchase events from more than one user in the entire history? This cross-user conflict diagnostic is outside the metric catalog.",
+      "metric": null,
+      "numerical": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "checks": {
+        "completed": true,
+        "expectedRouting": true,
+        "adhocDefinition": true,
+        "evidence": true,
+        "unnecessaryClarification": false,
+        "limitedScope": true,
+        "preservedDates": true,
+        "unavailable": true,
+        "explanationWithoutEvidence": true,
+        "budget": true,
+        "canonicalValue": true
+      },
+      "taskCoverage": "not_assessed",
+      "correctness": true,
+      "repairAttempts": 0,
+      "repairSqlSubmissions": 0,
+      "latencyMs": 22236,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 17601,
+        "outputTokens": 999,
+        "cost": 0.004253069999999999,
+        "analyst": {
+          "modelCalls": 3,
+          "inputTokens": 10135,
+          "outputTokens": 786,
+          "cost": 0.00213707
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 7466,
+          "outputTokens": 213,
+          "cost": 0.002116
+        }
+      },
+      "calls": [
+        {
+          "id": "call_qvfLkX3nqdRiDWaOwVgopkr7",
+          "name": "get_metrics",
+          "arguments": "{\"name\":\"transactions\"}"
+        },
+        {
+          "id": "call_KA9pURE1SK2snXz6YKYaeEab",
+          "name": "get_metrics",
+          "arguments": "{\"name\":\"purchases\"}"
+        },
+        {
+          "id": "call_pF7HJMSuhplAnlHDtM3Fl1WV",
+          "name": "get_schema",
+          "arguments": "{}"
+        },
+        {
+          "id": "call_lHNrkGfWaaZhb481PxUo9B0j",
+          "name": "run_sql",
+          "arguments": "{\"sql\":\"WITH valid_purchase_events AS (\\n  SELECT\\n    ecommerce.transaction_id AS transaction_id,\\n    user_pseudo_id\\n  FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`\\n  WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20210131'\\n    AND event_name = 'purchase'\\n    AND ecommerce.transaction_id IS NOT NULL\\n    AND TRIM(ecommerce.transaction_id) NOT IN ('', '(not set)', '<Other>', '(data deleted)')\\n), conflicting_ids AS (\\n  SELECT\\n    transaction_id\\n  FROM valid_purchase_events\\n  WHERE user_pseudo_id IS NOT NULL\\n  GROUP BY transaction_id\\n  HAVING COUNT(DISTINCT user_pseudo_id) > 1\\n)\\nSELECT COUNT(*) AS conflicting_valid_transaction_ids\\nFROM conflicting_ids\",\"purpose\":\"Count valid transaction IDs used by purchase events from more than one distinct user across the full available history.\",\"justification\":\"This cross-user transaction-ID conflict diagnostic is outside the metric catalog because the catalog provides distinct valid transaction totals but not transaction IDs grouped by distinct purchasing users. The query preserves the catalog's valid-ID exclusions and uses purchase events only.\",\"display\":{\"conflicting_valid_transaction_ids\":{\"label\":\"Valid transaction IDs occurring on purchase events from more than one user\",\"format\":\"integer\"}}}"
+        },
+        {
+          "id": "call_MSciNbdxSOx5MHwuvXNr755D",
+          "name": "present_analysis",
+          "arguments": "{\"narrative\":\"There are 15 valid transaction IDs associated with purchase events from more than one distinct user during the entire observed history, November 1, 2020 through January 31, 2021. Valid IDs exclude null, blank, \u201c(not set)\u201d, \u201c<Other>\u201d, and \u201c(data deleted)\u201d; purchase events with a null user ID were not treated as cross-user conflicts.\",\"caveats\":[\"This is a custom diagnostic outside the metric catalog, though it preserves the catalog\u2019s valid transaction-ID exclusions.\",\"The available history is limited to November 1, 2020 through January 31, 2021 and should not be interpreted as lifetime behavior.\",\"The GA4 sample is obfuscated and may contain missing values or internal inconsistencies.\"],\"resultRefs\":[\"dbac20f1-3d8b-4b5d-b2a2-ef6f0a515bc5\"],\"chartIds\":[]}"
+        }
+      ],
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "There are 15 valid transaction IDs associated with purchase events from more than one distinct user during the entire observed history, November 1, 2020 through January 31, 2021. Valid IDs exclude null, blank, \u201c(not set)\u201d, \u201c<Other>\u201d, and \u201c(data deleted)\u201d; purchase events with a null user ID were not treated as cross-user conflicts.",
+            "caveats": [
+              "This is a custom diagnostic outside the metric catalog, though it preserves the catalog\u2019s valid transaction-ID exclusions.",
+              "The available history is limited to November 1, 2020 through January 31, 2021 and should not be interpreted as lifetime behavior.",
+              "The GA4 sample is obfuscated and may contain missing values or internal inconsistencies.",
+              "Custom SQL: analytical scope and definitions are not catalog-validated; successful execution does not certify analytical correctness."
+            ],
+            "resultRefs": ["dbac20f1-3d8b-4b5d-b2a2-ef6f0a515bc5"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 4661,
+          "usage": {
+            "inputTokens": 7466,
+            "outputTokens": 213,
+            "cost": 0.002116
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "There are 15 valid transaction IDs associated with purchase events from more than one distinct user during the entire observed history, November 1, 2020 through January 31, 2021. Valid IDs exclude null, blank, \u201c(not set)\u201d, \u201c<Other>\u201d, and \u201c(data deleted)\u201d; purchase events with a null user ID were not treated as cross-user conflicts.",
+          "caveats": [
+            "This is a custom diagnostic outside the metric catalog, though it preserves the catalog\u2019s valid transaction-ID exclusions.",
+            "The available history is limited to November 1, 2020 through January 31, 2021 and should not be interpreted as lifetime behavior.",
+            "The GA4 sample is obfuscated and may contain missing values or internal inconsistencies.",
+            "Custom SQL: analytical scope and definitions are not catalog-validated; successful execution does not certify analytical correctness."
+          ],
+          "resultRefs": ["dbac20f1-3d8b-4b5d-b2a2-ef6f0a515bc5"],
+          "chartIds": []
+        }
+      },
+      "results": [
+        {
+          "columns": [
+            {
+              "name": "conflicting_valid_transaction_ids",
+              "type": "number",
+              "display": {
+                "label": "Valid transaction IDs occurring on purchase events from more than one user",
+                "format": "integer"
+              }
+            }
+          ],
+          "rows": [
+            {
+              "conflicting_valid_transaction_ids": 15
+            }
+          ],
+          "complete": true,
+          "totalRows": "1",
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "This cross-user transaction-ID conflict diagnostic is outside the metric catalog because the catalog provides distinct valid transaction totals but not transaction IDs grouped by distinct purchasing users. The query preserves the catalog's valid-ID exclusions and uses purchase events only.",
+          "requiredCaveats": [
+            "Custom SQL: analytical scope and definitions are not catalog-validated; successful execution does not certify analytical correctness."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "unspecified",
+            "topN": null
+          },
+          "ref": "dbac20f1-3d8b-4b5d-b2a2-ef6f0a515bc5",
+          "sql": "WITH valid_purchase_events AS (\n  SELECT\n    ecommerce.transaction_id AS transaction_id,\n    user_pseudo_id\n  FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`\n  WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20210131'\n    AND event_name = 'purchase'\n    AND ecommerce.transaction_id IS NOT NULL\n    AND TRIM(ecommerce.transaction_id) NOT IN ('', '(not set)', '<Other>', '(data deleted)')\n), conflicting_ids AS (\n  SELECT\n    transaction_id\n  FROM valid_purchase_events\n  WHERE user_pseudo_id IS NOT NULL\n  GROUP BY transaction_id\n  HAVING COUNT(DISTINCT user_pseudo_id) > 1\n)\nSELECT COUNT(*) AS conflicting_valid_transaction_ids\nFROM conflicting_ids",
+          "purpose": "Count valid transaction IDs used by purchase events from more than one distinct user across the full available history.",
+          "jobId": "d48b7bd3-8c87-44ec-bd24-2ad4d970c6e5",
+          "bytesProcessed": "152954554",
+          "bytesBilled": "153092096"
+        }
+      ]
+    },
+    {
+      "name": "multi-part",
+      "prompt": "Compare recorded USD purchase-event revenue and purchase-event counts by device in November 2020 and January 2021. Give both sets of values and distinguish descriptive comparisons from causal explanations.",
+      "metric": null,
+      "numerical": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "checks": {
+        "completed": true,
+        "expectedRouting": true,
+        "adhocDefinition": true,
+        "evidence": true,
+        "unnecessaryClarification": false,
+        "limitedScope": true,
+        "preservedDates": true,
+        "unavailable": true,
+        "explanationWithoutEvidence": true,
+        "budget": true,
+        "canonicalValue": true
+      },
+      "taskCoverage": "full",
+      "correctness": true,
+      "repairAttempts": 0,
+      "repairSqlSubmissions": 0,
+      "latencyMs": 54990,
+      "usage": {
+        "modelCalls": 5,
+        "inputTokens": 33850,
+        "outputTokens": 2128,
+        "cost": 0.008306560000000001,
+        "analyst": {
+          "modelCalls": 4,
+          "inputTokens": 19589,
+          "outputTokens": 1757,
+          "cost": 0.00430221
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 14261,
+          "outputTokens": 371,
+          "cost": 0.00400435
+        }
+      },
+      "calls": [
+        {
+          "id": "call_L3s3k44tv6fv6SPQd5NZdRRL",
+          "name": "get_metrics",
+          "arguments": "{\"name\":\"revenue\"}"
+        },
+        {
+          "id": "call_tengxLmE3Ci110Mg0uyRcMwl",
+          "name": "get_metrics",
+          "arguments": "{\"name\":\"event_counts\"}"
+        },
+        {
+          "id": "call_ddtAmBi5obeuASZzvvaoBN8z",
+          "name": "run_metric",
+          "arguments": "{\"metric\":\"revenue\",\"startDate\":\"2020-11-01\",\"endDate\":\"2020-11-30\",\"dimensions\":[\"device\"],\"filters\":[]}"
+        },
+        {
+          "id": "call_zax7heoy5ocXBgt9BcZLCHd8",
+          "name": "run_metric",
+          "arguments": "{\"metric\":\"revenue\",\"startDate\":\"2021-01-01\",\"endDate\":\"2021-01-31\",\"dimensions\":[\"device\"],\"filters\":[]}"
+        },
+        {
+          "id": "call_CRofd9lBUs6devpZeWip6EW8",
+          "name": "run_metric",
+          "arguments": "{\"metric\":\"event_counts\",\"startDate\":\"2020-11-01\",\"endDate\":\"2020-11-30\",\"dimensions\":[\"device\"],\"filters\":[{\"field\":\"event_name\",\"op\":\"eq\",\"value\":\"purchase\"}]}"
+        },
+        {
+          "id": "call_swmqYoueGk8OCPVNB3Sa9iSo",
+          "name": "run_metric",
+          "arguments": "{\"metric\":\"event_counts\",\"startDate\":\"2021-01-01\",\"endDate\":\"2021-01-31\",\"dimensions\":[\"device\"],\"filters\":[{\"field\":\"event_name\",\"op\":\"eq\",\"value\":\"purchase\"}]}"
+        },
+        {
+          "id": "call_bEzCpGUTna6g7nBbFgTB3K1i",
+          "name": "publish_chart",
+          "arguments": "{\"title\":\"Recorded purchase-event revenue by device \u2014 November 2020\",\"resultRef\":\"573a5ac6-1b72-4d9c-8f50-ea6e2ee6abf1\",\"type\":\"table\",\"columns\":[\"device\",\"revenue\",\"missing_revenue_events\"]}"
+        },
+        {
+          "id": "call_O3EOlfvEfGoa5CQGakWxTpgD",
+          "name": "publish_chart",
+          "arguments": "{\"title\":\"Recorded purchase-event revenue by device \u2014 January 2021\",\"resultRef\":\"73c257f5-4a92-44ef-ac0a-79ebfecaeb8c\",\"type\":\"table\",\"columns\":[\"device\",\"revenue\",\"missing_revenue_events\"]}"
+        },
+        {
+          "id": "call_1rIqioqVniju77msJVj9bZxz",
+          "name": "publish_chart",
+          "arguments": "{\"title\":\"Purchase-event counts by device \u2014 November 2020\",\"resultRef\":\"66f6d809-633a-470e-ab81-647db59ee816\",\"type\":\"table\",\"columns\":[\"device\",\"event_name\",\"event_count\"]}"
+        },
+        {
+          "id": "call_JdvjhIWU8vxdt1w6EpKXlSA2",
+          "name": "publish_chart",
+          "arguments": "{\"title\":\"Purchase-event counts by device \u2014 January 2021\",\"resultRef\":\"75ac4c3d-de89-4cb2-b39b-ead28b3cd044\",\"type\":\"table\",\"columns\":[\"device\",\"event_name\",\"event_count\"]}"
+        },
+        {
+          "id": "call_kXWw7IJzwhJgn8fBUacBeP1w",
+          "name": "present_analysis",
+          "arguments": "{\"narrative\":\"## Recorded purchase-event comparison by device\\n\\n| Device | November 2020 recorded revenue | January 2021 recorded revenue | November purchase events | January purchase events |\\n|---|---:|---:|---:|---:|\\n| Desktop | $79,289.00 | $31,774.00 | 1,144 | 667 |\\n| Mobile | $62,087.00 | $24,231.00 | 872 | 508 |\\n| Tablet | $2,884.00 | $1,345.00 | 38 | 29 |\\n\\n### Descriptive comparisons\\n- **Desktop** was highest in both months for recorded revenue and purchase-event count. Revenue decreased by **$47,515.00 (60.0%)**, while purchase events decreased by **477 (41.7%)**.\\n- **Mobile** was second in both months. Revenue decreased by **$37,856.00 (61.0%)**, and purchase events decreased by **364 (41.7%)**.\\n- **Tablet** was lowest in both months. Revenue decreased by **$1,539.00 (53.4%)**, while purchase events decreased by **9 (23.7%)**.\\n- Across all devices, recorded revenue fell from **$144,260.00** in November to **$57,350.00** in January, a decrease of **$86,910.00 (60.3%)**. Purchase-event counts fell from **2,054** to **1,204**, a decrease of **850 (41.4%)**.\\n- The larger percentage decline in revenue than in purchase-event counts indicates a descriptive change in revenue per recorded purchase event, but these data alone do not establish why that occurred.\\n\\n### Causal interpretation\\nThese results are **descriptive**, not causal. They show that both recorded purchase-event revenue and purchase-event counts were lower in January than in November for every device category. They do **not** demonstrate that device type caused the declines, or identify a cause such as traffic volume, marketing mix, seasonality, pricing, product mix, tracking changes, or customer behavior. Establishing causality would require additional controls and evidence, such as comparable traffic and campaign data, product/order-value data, and validation of measurement consistency.\",\"caveats\":[\"Revenue is recorded USD purchase-event revenue; events with missing revenue contribute nothing to revenue and are counted separately. Missing-revenue events were 0 for both requested revenue breakdowns.\",\"Purchase-event counts are event counts, not necessarily unique purchasers or transactions.\",\"This is the obfuscated sample\u2019s observed history for November 1, 2020 through January 31, 2021; it does not represent lifetime behavior or production GA4.\",\"January and November have different calendar lengths (31 versus 30 days), so raw monthly totals are not exposure-normalized.\"],\"resultRefs\":[\"573a5ac6-1b72-4d9c-8f50-ea6e2ee6abf1\",\"73c257f5-4a92-44ef-ac0a-79ebfecaeb8c\",\"66f6d809-633a-470e-ab81-647db59ee816\",\"75ac4c3d-de89-4cb2-b39b-ead28b3cd044\"],\"chartIds\":[\"ff5a58ec-9ef5-486f-9939-9c9a27d3b257\",\"16bcaa68-be62-4f6e-8b91-b9195c0b4998\",\"d59010e4-8762-4c58-babd-0a7ca9d22ad6\",\"2a2fb831-380b-4183-a3a1-c8bb0d885394\"]}"
+        }
+      ],
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "## Recorded purchase-event comparison by device\n\n| Device | November 2020 recorded revenue | January 2021 recorded revenue | November purchase events | January purchase events |\n|---|---:|---:|---:|---:|\n| Desktop | $79,289.00 | $31,774.00 | 1,144 | 667 |\n| Mobile | $62,087.00 | $24,231.00 | 872 | 508 |\n| Tablet | $2,884.00 | $1,345.00 | 38 | 29 |\n\n### Descriptive comparisons\n- **Desktop** was highest in both months for recorded revenue and purchase-event count. Revenue decreased by **$47,515.00 (60.0%)**, while purchase events decreased by **477 (41.7%)**.\n- **Mobile** was second in both months. Revenue decreased by **$37,856.00 (61.0%)**, and purchase events decreased by **364 (41.7%)**.\n- **Tablet** was lowest in both months. Revenue decreased by **$1,539.00 (53.4%)**, while purchase events decreased by **9 (23.7%)**.\n- Across all devices, recorded revenue fell from **$144,260.00** in November to **$57,350.00** in January, a decrease of **$86,910.00 (60.3%)**. Purchase-event counts fell from **2,054** to **1,204**, a decrease of **850 (41.4%)**.\n- The larger percentage decline in revenue than in purchase-event counts indicates a descriptive change in revenue per recorded purchase event, but these data alone do not establish why that occurred.\n\n### Causal interpretation\nThese results are **descriptive**, not causal. They show that both recorded purchase-event revenue and purchase-event counts were lower in January than in November for every device category. They do **not** demonstrate that device type caused the declines, or identify a cause such as traffic volume, marketing mix, seasonality, pricing, product mix, tracking changes, or customer behavior. Establishing causality would require additional controls and evidence, such as comparable traffic and campaign data, product/order-value data, and validation of measurement consistency.",
+            "caveats": [
+              "Revenue is recorded USD purchase-event revenue; events with missing revenue contribute nothing to revenue and are counted separately. Missing-revenue events were 0 for both requested revenue breakdowns.",
+              "Purchase-event counts are event counts, not necessarily unique purchasers or transactions.",
+              "This is the obfuscated sample\u2019s observed history for November 1, 2020 through January 31, 2021; it does not represent lifetime behavior or production GA4.",
+              "January and November have different calendar lengths (31 versus 30 days), so raw monthly totals are not exposure-normalized.",
+              "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+              "Recorded USD purchase-event revenue; missing revenue contributes nothing and is counted separately.",
+              "Data-quality counts across the full requested breakdown before ranking: Missing revenue events: 0.",
+              "Event counts grouped by event name."
+            ],
+            "resultRefs": [
+              "573a5ac6-1b72-4d9c-8f50-ea6e2ee6abf1",
+              "73c257f5-4a92-44ef-ac0a-79ebfecaeb8c",
+              "66f6d809-633a-470e-ab81-647db59ee816",
+              "75ac4c3d-de89-4cb2-b39b-ead28b3cd044"
+            ],
+            "chartIds": [
+              "ff5a58ec-9ef5-486f-9939-9c9a27d3b257",
+              "16bcaa68-be62-4f6e-8b91-b9195c0b4998",
+              "d59010e4-8762-4c58-babd-0a7ca9d22ad6",
+              "2a2fb831-380b-4183-a3a1-c8bb0d885394"
+            ]
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 5851,
+          "usage": {
+            "inputTokens": 14261,
+            "outputTokens": 371,
+            "cost": 0.00400435
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "## Recorded purchase-event comparison by device\n\n| Device | November 2020 recorded revenue | January 2021 recorded revenue | November purchase events | January purchase events |\n|---|---:|---:|---:|---:|\n| Desktop | $79,289.00 | $31,774.00 | 1,144 | 667 |\n| Mobile | $62,087.00 | $24,231.00 | 872 | 508 |\n| Tablet | $2,884.00 | $1,345.00 | 38 | 29 |\n\n### Descriptive comparisons\n- **Desktop** was highest in both months for recorded revenue and purchase-event count. Revenue decreased by **$47,515.00 (60.0%)**, while purchase events decreased by **477 (41.7%)**.\n- **Mobile** was second in both months. Revenue decreased by **$37,856.00 (61.0%)**, and purchase events decreased by **364 (41.7%)**.\n- **Tablet** was lowest in both months. Revenue decreased by **$1,539.00 (53.4%)**, while purchase events decreased by **9 (23.7%)**.\n- Across all devices, recorded revenue fell from **$144,260.00** in November to **$57,350.00** in January, a decrease of **$86,910.00 (60.3%)**. Purchase-event counts fell from **2,054** to **1,204**, a decrease of **850 (41.4%)**.\n- The larger percentage decline in revenue than in purchase-event counts indicates a descriptive change in revenue per recorded purchase event, but these data alone do not establish why that occurred.\n\n### Causal interpretation\nThese results are **descriptive**, not causal. They show that both recorded purchase-event revenue and purchase-event counts were lower in January than in November for every device category. They do **not** demonstrate that device type caused the declines, or identify a cause such as traffic volume, marketing mix, seasonality, pricing, product mix, tracking changes, or customer behavior. Establishing causality would require additional controls and evidence, such as comparable traffic and campaign data, product/order-value data, and validation of measurement consistency.",
+          "caveats": [
+            "Revenue is recorded USD purchase-event revenue; events with missing revenue contribute nothing to revenue and are counted separately. Missing-revenue events were 0 for both requested revenue breakdowns.",
+            "Purchase-event counts are event counts, not necessarily unique purchasers or transactions.",
+            "This is the obfuscated sample\u2019s observed history for November 1, 2020 through January 31, 2021; it does not represent lifetime behavior or production GA4.",
+            "January and November have different calendar lengths (31 versus 30 days), so raw monthly totals are not exposure-normalized.",
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Recorded USD purchase-event revenue; missing revenue contributes nothing and is counted separately.",
+            "Data-quality counts across the full requested breakdown before ranking: Missing revenue events: 0.",
+            "Event counts grouped by event name."
+          ],
+          "resultRefs": [
+            "573a5ac6-1b72-4d9c-8f50-ea6e2ee6abf1",
+            "73c257f5-4a92-44ef-ac0a-79ebfecaeb8c",
+            "66f6d809-633a-470e-ab81-647db59ee816",
+            "75ac4c3d-de89-4cb2-b39b-ead28b3cd044"
+          ],
+          "chartIds": [
+            "ff5a58ec-9ef5-486f-9939-9c9a27d3b257",
+            "16bcaa68-be62-4f6e-8b91-b9195c0b4998",
+            "d59010e4-8762-4c58-babd-0a7ca9d22ad6",
+            "2a2fb831-380b-4183-a3a1-c8bb0d885394"
+          ]
+        }
+      },
+      "results": [
+        {
+          "columns": [
+            {
+              "name": "device",
+              "type": "string",
+              "display": {
+                "label": "Device"
+              }
+            },
+            {
+              "name": "revenue",
+              "type": "number",
+              "display": {
+                "label": "Recorded revenue",
+                "format": "usd"
+              }
+            },
+            {
+              "name": "missing_revenue_events",
+              "type": "number",
+              "display": {
+                "label": "Missing revenue events",
+                "format": "integer"
+              }
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "revenue": 79289,
+              "missing_revenue_events": 0
+            },
+            {
+              "device": "mobile",
+              "revenue": 62087,
+              "missing_revenue_events": 0
+            },
+            {
+              "device": "tablet",
+              "revenue": 2884,
+              "missing_revenue_events": 0
+            }
+          ],
+          "complete": true,
+          "totalRows": "3",
+          "origin": "catalog",
+          "catalog": {
+            "arguments": {
+              "metric": "revenue",
+              "startDate": "2020-11-01",
+              "endDate": "2020-11-30",
+              "dimensions": ["device"],
+              "filters": []
+            },
+            "definition": "Recorded USD purchase-event revenue; missing revenue contributes nothing and is counted separately."
+          },
+          "parameters": {
+            "start": "20201101",
+            "end": "20201130"
+          },
+          "justification": null,
+          "requiredCaveats": [
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Recorded USD purchase-event revenue; missing revenue contributes nothing and is counted separately.",
+            "Data-quality counts across the full requested breakdown before ranking: Missing revenue events: 0."
+          ],
+          "dataQuality": {
+            "missing_revenue_events": 0
+          },
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "573a5ac6-1b72-4d9c-8f50-ea6e2ee6abf1",
+          "sql": "WITH events AS (SELECT event_date, event_timestamp, event_name, user_pseudo_id,\n  device.category AS device, geo.country AS country, traffic_source.source AS source, traffic_source.medium AS medium,\n  ecommerce.purchase_revenue_in_usd AS revenue, ecommerce.transaction_id AS transaction_id, items,\n  (SELECT MAX(value.int_value) FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS session_id,\n  (SELECT MAX(SAFE_CAST(COALESCE(CAST(value.int_value AS STRING), value.string_value) AS INT64)) FROM UNNEST(event_params) WHERE key = 'session_engaged' AND COALESCE(CAST(value.int_value AS STRING), value.string_value) IN ('0', '1')) AS engaged_flag,\n  (SELECT SUM(COALESCE(value.int_value, SAFE_CAST(value.string_value AS INT64))) FROM UNNEST(event_params) WHERE key = 'engagement_time_msec') AS engagement_time\nFROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20210131'), aggregated AS (SELECT device, COALESCE(SUM(revenue), 0) AS revenue, COUNTIF(revenue IS NULL) AS missing_revenue_events FROM events WHERE event_date BETWEEN @start AND @end AND event_name = 'purchase' GROUP BY device), totals AS (SELECT COUNT(*) AS _group_count, COALESCE(SUM(missing_revenue_events), 0) AS _quality_missing_revenue_events FROM aggregated), selection AS (SELECT *, 1 AS _present FROM aggregated ORDER BY device ASC) SELECT selection.*, totals.* FROM totals LEFT JOIN selection ON TRUE ORDER BY device ASC",
+          "purpose": "revenue: 2020-11-01 through 2020-11-30",
+          "jobId": "fe4ab2cb-e37c-46ee-8cb3-1ec41c4694af",
+          "bytesProcessed": "135818939",
+          "bytesBilled": "136314880"
+        },
+        {
+          "columns": [
+            {
+              "name": "device",
+              "type": "string",
+              "display": {
+                "label": "Device"
+              }
+            },
+            {
+              "name": "revenue",
+              "type": "number",
+              "display": {
+                "label": "Recorded revenue",
+                "format": "usd"
+              }
+            },
+            {
+              "name": "missing_revenue_events",
+              "type": "number",
+              "display": {
+                "label": "Missing revenue events",
+                "format": "integer"
+              }
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "revenue": 31774,
+              "missing_revenue_events": 0
+            },
+            {
+              "device": "mobile",
+              "revenue": 24231,
+              "missing_revenue_events": 0
+            },
+            {
+              "device": "tablet",
+              "revenue": 1345,
+              "missing_revenue_events": 0
+            }
+          ],
+          "complete": true,
+          "totalRows": "3",
+          "origin": "catalog",
+          "catalog": {
+            "arguments": {
+              "metric": "revenue",
+              "startDate": "2021-01-01",
+              "endDate": "2021-01-31",
+              "dimensions": ["device"],
+              "filters": []
+            },
+            "definition": "Recorded USD purchase-event revenue; missing revenue contributes nothing and is counted separately."
+          },
+          "parameters": {
+            "start": "20210101",
+            "end": "20210131"
+          },
+          "justification": null,
+          "requiredCaveats": [
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Recorded USD purchase-event revenue; missing revenue contributes nothing and is counted separately.",
+            "Data-quality counts across the full requested breakdown before ranking: Missing revenue events: 0."
+          ],
+          "dataQuality": {
+            "missing_revenue_events": 0
+          },
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "73c257f5-4a92-44ef-ac0a-79ebfecaeb8c",
+          "sql": "WITH events AS (SELECT event_date, event_timestamp, event_name, user_pseudo_id,\n  device.category AS device, geo.country AS country, traffic_source.source AS source, traffic_source.medium AS medium,\n  ecommerce.purchase_revenue_in_usd AS revenue, ecommerce.transaction_id AS transaction_id, items,\n  (SELECT MAX(value.int_value) FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS session_id,\n  (SELECT MAX(SAFE_CAST(COALESCE(CAST(value.int_value AS STRING), value.string_value) AS INT64)) FROM UNNEST(event_params) WHERE key = 'session_engaged' AND COALESCE(CAST(value.int_value AS STRING), value.string_value) IN ('0', '1')) AS engaged_flag,\n  (SELECT SUM(COALESCE(value.int_value, SAFE_CAST(value.string_value AS INT64))) FROM UNNEST(event_params) WHERE key = 'engagement_time_msec') AS engagement_time\nFROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20210131'), aggregated AS (SELECT device, COALESCE(SUM(revenue), 0) AS revenue, COUNTIF(revenue IS NULL) AS missing_revenue_events FROM events WHERE event_date BETWEEN @start AND @end AND event_name = 'purchase' GROUP BY device), totals AS (SELECT COUNT(*) AS _group_count, COALESCE(SUM(missing_revenue_events), 0) AS _quality_missing_revenue_events FROM aggregated), selection AS (SELECT *, 1 AS _present FROM aggregated ORDER BY device ASC) SELECT selection.*, totals.* FROM totals LEFT JOIN selection ON TRUE ORDER BY device ASC",
+          "purpose": "revenue: 2021-01-01 through 2021-01-31",
+          "jobId": "0c4d0a5b-e88a-4645-8304-840e232d5518",
+          "bytesProcessed": "135818939",
+          "bytesBilled": "136314880"
+        },
+        {
+          "columns": [
+            {
+              "name": "device",
+              "type": "string",
+              "display": {
+                "label": "Device"
+              }
+            },
+            {
+              "name": "event_name",
+              "type": "string",
+              "display": {
+                "label": "Event name"
+              }
+            },
+            {
+              "name": "event_count",
+              "type": "number",
+              "display": {
+                "label": "Event count",
+                "format": "integer"
+              }
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "event_name": "purchase",
+              "event_count": 1144
+            },
+            {
+              "device": "mobile",
+              "event_name": "purchase",
+              "event_count": 872
+            },
+            {
+              "device": "tablet",
+              "event_name": "purchase",
+              "event_count": 38
+            }
+          ],
+          "complete": true,
+          "totalRows": "3",
+          "origin": "catalog",
+          "catalog": {
+            "arguments": {
+              "metric": "event_counts",
+              "startDate": "2020-11-01",
+              "endDate": "2020-11-30",
+              "dimensions": ["device", "event_name"],
+              "filters": [
+                {
+                  "field": "event_name",
+                  "op": "eq",
+                  "value": "purchase"
+                }
+              ]
+            },
+            "definition": "Event counts grouped by event name."
+          },
+          "parameters": {
+            "start": "20201101",
+            "end": "20201130",
+            "filter_0": "purchase"
+          },
+          "justification": null,
+          "requiredCaveats": [
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Event counts grouped by event name."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "66f6d809-633a-470e-ab81-647db59ee816",
+          "sql": "WITH events AS (SELECT event_date, event_timestamp, event_name, user_pseudo_id,\n  device.category AS device, geo.country AS country, traffic_source.source AS source, traffic_source.medium AS medium,\n  ecommerce.purchase_revenue_in_usd AS revenue, ecommerce.transaction_id AS transaction_id, items,\n  (SELECT MAX(value.int_value) FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS session_id,\n  (SELECT MAX(SAFE_CAST(COALESCE(CAST(value.int_value AS STRING), value.string_value) AS INT64)) FROM UNNEST(event_params) WHERE key = 'session_engaged' AND COALESCE(CAST(value.int_value AS STRING), value.string_value) IN ('0', '1')) AS engaged_flag,\n  (SELECT SUM(COALESCE(value.int_value, SAFE_CAST(value.string_value AS INT64))) FROM UNNEST(event_params) WHERE key = 'engagement_time_msec') AS engagement_time\nFROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20210131'), aggregated AS (SELECT device, event_name, COUNT(*) AS event_count FROM events WHERE event_date BETWEEN @start AND @end AND event_name = @filter_0 GROUP BY device, event_name), totals AS (SELECT COUNT(*) AS _group_count FROM aggregated), selection AS (SELECT *, 1 AS _present FROM aggregated ORDER BY device ASC, event_name ASC) SELECT selection.*, totals.* FROM totals LEFT JOIN selection ON TRUE ORDER BY device ASC, event_name ASC",
+          "purpose": "event_counts: 2020-11-01 through 2020-11-30",
+          "jobId": "66a3cc83-95d0-426c-a51c-77f0bbdbb307",
+          "bytesProcessed": "135773403",
+          "bytesBilled": "136314880"
+        },
+        {
+          "columns": [
+            {
+              "name": "device",
+              "type": "string",
+              "display": {
+                "label": "Device"
+              }
+            },
+            {
+              "name": "event_name",
+              "type": "string",
+              "display": {
+                "label": "Event name"
+              }
+            },
+            {
+              "name": "event_count",
+              "type": "number",
+              "display": {
+                "label": "Event count",
+                "format": "integer"
+              }
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "event_name": "purchase",
+              "event_count": 667
+            },
+            {
+              "device": "mobile",
+              "event_name": "purchase",
+              "event_count": 508
+            },
+            {
+              "device": "tablet",
+              "event_name": "purchase",
+              "event_count": 29
+            }
+          ],
+          "complete": true,
+          "totalRows": "3",
+          "origin": "catalog",
+          "catalog": {
+            "arguments": {
+              "metric": "event_counts",
+              "startDate": "2021-01-01",
+              "endDate": "2021-01-31",
+              "dimensions": ["device", "event_name"],
+              "filters": [
+                {
+                  "field": "event_name",
+                  "op": "eq",
+                  "value": "purchase"
+                }
+              ]
+            },
+            "definition": "Event counts grouped by event name."
+          },
+          "parameters": {
+            "start": "20210101",
+            "end": "20210131",
+            "filter_0": "purchase"
+          },
+          "justification": null,
+          "requiredCaveats": [
+            "Observations cover only the obfuscated sample history, November 1, 2020 through January 31, 2021; they do not describe production GA4 or lifetime customer behavior.",
+            "Event counts grouped by event name."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "75ac4c3d-de89-4cb2-b39b-ead28b3cd044",
+          "sql": "WITH events AS (SELECT event_date, event_timestamp, event_name, user_pseudo_id,\n  device.category AS device, geo.country AS country, traffic_source.source AS source, traffic_source.medium AS medium,\n  ecommerce.purchase_revenue_in_usd AS revenue, ecommerce.transaction_id AS transaction_id, items,\n  (SELECT MAX(value.int_value) FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS session_id,\n  (SELECT MAX(SAFE_CAST(COALESCE(CAST(value.int_value AS STRING), value.string_value) AS INT64)) FROM UNNEST(event_params) WHERE key = 'session_engaged' AND COALESCE(CAST(value.int_value AS STRING), value.string_value) IN ('0', '1')) AS engaged_flag,\n  (SELECT SUM(COALESCE(value.int_value, SAFE_CAST(value.string_value AS INT64))) FROM UNNEST(event_params) WHERE key = 'engagement_time_msec') AS engagement_time\nFROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20210131'), aggregated AS (SELECT device, event_name, COUNT(*) AS event_count FROM events WHERE event_date BETWEEN @start AND @end AND event_name = @filter_0 GROUP BY device, event_name), totals AS (SELECT COUNT(*) AS _group_count FROM aggregated), selection AS (SELECT *, 1 AS _present FROM aggregated ORDER BY device ASC, event_name ASC) SELECT selection.*, totals.* FROM totals LEFT JOIN selection ON TRUE ORDER BY device ASC, event_name ASC",
+          "purpose": "event_counts: 2021-01-01 through 2021-01-31",
+          "jobId": "116aeeaf-aaf7-4bc7-9355-2752b445af21",
+          "bytesProcessed": "135773403",
+          "bytesBilled": "136314880"
+        }
+      ],
+      "taskCoverageAssessment": "Recomputed from saved referenced results with the rubric accepting event_counts filtered to purchase, equivalent to purchases. No model/warehouse rerun."
+    },
+    {
+      "name": "ambiguous",
+      "prompt": "Compare our retention rate. Ask me to choose the retention cohort and return criterion before calculating.",
+      "metric": null,
+      "numerical": false,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "checks": {
+        "completed": true,
+        "expectedRouting": true,
+        "adhocDefinition": true,
+        "evidence": true,
+        "unnecessaryClarification": false,
+        "limitedScope": true,
+        "preservedDates": true,
+        "unavailable": true,
+        "explanationWithoutEvidence": true,
+        "budget": true,
+        "canonicalValue": true
+      },
+      "taskCoverage": "not_assessed",
+      "correctness": true,
+      "repairAttempts": 0,
+      "repairSqlSubmissions": 0,
+      "latencyMs": 3311,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 2660,
+        "outputTokens": 225,
+        "cost": 0.00034516,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 2660,
+          "outputTokens": 225,
+          "cost": 0.00034516
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "calls": [
+        {
+          "id": "call_S3uZNScQMvPzg3cROsfh8PKh",
+          "name": "request_clarification",
+          "arguments": "{\"context\":\"Retention rate depends on how the cohort is formed and what counts as a return. The available GA4 history is November 1, 2020 through January 31, 2021, so the selected cohort also needs enough follow-up time within that window.\",\"questions\":[\"Which retention cohort should I use: users first seen in November 2020, December 2020, January 2021, or a rolling cohort by first-seen week?\",\"What should count as a return: any subsequent session, any subsequent purchase, or another criterion you specify?\",\"How should I compare retention: cohort-to-cohort, or an early-period versus late-period comparison?\"]}"
+        }
+      ],
+      "reviews": [],
+      "final": {
+        "kind": "clarification",
+        "clarification": {
+          "context": "Retention rate depends on how the cohort is formed and what counts as a return. The available GA4 history is November 1, 2020 through January 31, 2021, so the selected cohort also needs enough follow-up time within that window.",
+          "questions": [
+            "Which retention cohort should I use: users first seen in November 2020, December 2020, January 2021, or a rolling cohort by first-seen week?",
+            "What should count as a return: any subsequent session, any subsequent purchase, or another criterion you specify?",
+            "How should I compare retention: cohort-to-cohort, or an early-period versus late-period comparison?"
+          ]
+        }
+      },
+      "results": []
+    },
+    {
+      "name": "unavailable",
+      "prompt": "What was our recorded revenue in February 2021? Explain if those data are unavailable.",
+      "metric": null,
+      "numerical": false,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "checks": {
+        "completed": true,
+        "expectedRouting": true,
+        "adhocDefinition": true,
+        "evidence": true,
+        "unnecessaryClarification": false,
+        "limitedScope": true,
+        "preservedDates": true,
+        "unavailable": true,
+        "explanationWithoutEvidence": true,
+        "budget": true,
+        "canonicalValue": true
+      },
+      "taskCoverage": "not_assessed",
+      "correctness": true,
+      "repairAttempts": 0,
+      "repairSqlSubmissions": 0,
+      "latencyMs": 8551,
+      "usage": {
+        "modelCalls": 3,
+        "inputTokens": 11062,
+        "outputTokens": 361,
+        "cost": 0.00196876,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 5512,
+          "outputTokens": 270,
+          "cost": 0.00047816
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 5550,
+          "outputTokens": 91,
+          "cost": 0.0014906
+        }
+      },
+      "calls": [
+        {
+          "id": "call_y0CrV2b4ci5YLVriRobc2vK5",
+          "name": "get_metrics",
+          "arguments": "{\"name\":\"revenue\"}"
+        },
+        {
+          "id": "call_CtuIRo1idIcAXwmlreTDnb5A",
+          "name": "present_analysis",
+          "arguments": "{\"narrative\":\"Recorded revenue for February 2021 is unavailable. The available GA4 data window ends on January 31, 2021, so there are no observed February 2021 records to report. This should be treated as unavailable data, not $0 in revenue.\",\"caveats\":[\"The available window is November 1, 2020 through January 31, 2021 and is treated as the entire observed history.\",\"Recorded revenue means USD revenue from purchase events; missing revenue values contribute nothing and are counted separately when data are available.\"],\"resultRefs\":[],\"chartIds\":[]}"
+        }
+      ],
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Recorded revenue for February 2021 is unavailable. The available GA4 data window ends on January 31, 2021, so there are no observed February 2021 records to report. This should be treated as unavailable data, not $0 in revenue.",
+            "caveats": [
+              "The available window is November 1, 2020 through January 31, 2021 and is treated as the entire observed history.",
+              "Recorded revenue means USD revenue from purchase events; missing revenue values contribute nothing and are counted separately when data are available."
+            ],
+            "resultRefs": [],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2713,
+          "usage": {
+            "inputTokens": 5550,
+            "outputTokens": 91,
+            "cost": 0.0014906
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Recorded revenue for February 2021 is unavailable. The available GA4 data window ends on January 31, 2021, so there are no observed February 2021 records to report. This should be treated as unavailable data, not $0 in revenue.",
+          "caveats": [
+            "The available window is November 1, 2020 through January 31, 2021 and is treated as the entire observed history.",
+            "Recorded revenue means USD revenue from purchase events; missing revenue values contribute nothing and are counted separately when data are available."
+          ],
+          "resultRefs": [],
+          "chartIds": []
+        }
+      },
+      "results": []
+    },
+    {
+      "name": "explanation",
+      "prompt": "Explain the catalog's engagement-rate definition and unknown flags. Do not calculate dataset values.",
+      "metric": null,
+      "numerical": false,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "checks": {
+        "completed": true,
+        "expectedRouting": true,
+        "adhocDefinition": true,
+        "evidence": true,
+        "unnecessaryClarification": false,
+        "limitedScope": true,
+        "preservedDates": true,
+        "unavailable": true,
+        "explanationWithoutEvidence": true,
+        "budget": true,
+        "canonicalValue": true
+      },
+      "taskCoverage": "not_assessed",
+      "correctness": true,
+      "repairAttempts": 0,
+      "repairSqlSubmissions": 0,
+      "latencyMs": 9580,
+      "usage": {
+        "modelCalls": 3,
+        "inputTokens": 11359,
+        "outputTokens": 524,
+        "cost": 0.00222274,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 5581,
+          "outputTokens": 359,
+          "cost": 0.00058634
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 5778,
+          "outputTokens": 165,
+          "cost": 0.0016364
+        }
+      },
+      "calls": [
+        {
+          "id": "call_D3bmgpxZpArmeeC0aKXPAiiQ",
+          "name": "get_metrics",
+          "arguments": "{\"name\":\"engagement_rate\"}"
+        },
+        {
+          "id": "call_6dHwopqFfLqPxatqJXHK2kXG",
+          "name": "present_analysis",
+          "arguments": "{\"narrative\":\"The catalog defines Engagement rate as the number of sessions whose engaged flag is valid and equal to 1, divided by the number of sessions with a known valid engaged flag\u2014either 0 or 1. In formula form: engaged sessions \u00f7 known sessions.\\n\\nUnknown flags are kept separate from the denominator. A session is unknown when its engaged flag is not a valid 0 or 1 (for example, when it is missing or otherwise unusable). Therefore, unknown sessions do not count as engaged and do not count as known non-engaged sessions; they are excluded from the rate calculation but remain available in the `unknown_sessions` output. The catalog also returns `sessions` overall, alongside `engaged_sessions`, `known_sessions`, and `unknown_sessions`.\\n\\nIf no sessions have a known valid flag, Engagement rate is null\u2014not zero. The catalog guidance also says to build full-history sessions before applying the reporting-period or dimension logic, so the metric preserves the session-level flag interpretation across the available observed history.\",\"caveats\":[\"This explanation describes the catalog definition only; no dataset values were calculated.\",\"Unknown is distinct from zero: a valid flag of 0 contributes to the known denominator, while an unknown flag does not.\",\"The metric is defined over the available observed history, not lifetime behavior.\"] ,\"resultRefs\":[],\"chartIds\":[]}"
+        }
+      ],
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "The catalog defines Engagement rate as the number of sessions whose engaged flag is valid and equal to 1, divided by the number of sessions with a known valid engaged flag\u2014either 0 or 1. In formula form: engaged sessions \u00f7 known sessions.\n\nUnknown flags are kept separate from the denominator. A session is unknown when its engaged flag is not a valid 0 or 1 (for example, when it is missing or otherwise unusable). Therefore, unknown sessions do not count as engaged and do not count as known non-engaged sessions; they are excluded from the rate calculation but remain available in the `unknown_sessions` output. The catalog also returns `sessions` overall, alongside `engaged_sessions`, `known_sessions`, and `unknown_sessions`.\n\nIf no sessions have a known valid flag, Engagement rate is null\u2014not zero. The catalog guidance also says to build full-history sessions before applying the reporting-period or dimension logic, so the metric preserves the session-level flag interpretation across the available observed history.",
+            "caveats": [
+              "This explanation describes the catalog definition only; no dataset values were calculated.",
+              "Unknown is distinct from zero: a valid flag of 0 contributes to the known denominator, while an unknown flag does not.",
+              "The metric is defined over the available observed history, not lifetime behavior."
+            ],
+            "resultRefs": [],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2768,
+          "usage": {
+            "inputTokens": 5778,
+            "outputTokens": 165,
+            "cost": 0.0016364
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "The catalog defines Engagement rate as the number of sessions whose engaged flag is valid and equal to 1, divided by the number of sessions with a known valid engaged flag\u2014either 0 or 1. In formula form: engaged sessions \u00f7 known sessions.\n\nUnknown flags are kept separate from the denominator. A session is unknown when its engaged flag is not a valid 0 or 1 (for example, when it is missing or otherwise unusable). Therefore, unknown sessions do not count as engaged and do not count as known non-engaged sessions; they are excluded from the rate calculation but remain available in the `unknown_sessions` output. The catalog also returns `sessions` overall, alongside `engaged_sessions`, `known_sessions`, and `unknown_sessions`.\n\nIf no sessions have a known valid flag, Engagement rate is null\u2014not zero. The catalog guidance also says to build full-history sessions before applying the reporting-period or dimension logic, so the metric preserves the session-level flag interpretation across the available observed history.",
+          "caveats": [
+            "This explanation describes the catalog definition only; no dataset values were calculated.",
+            "Unknown is distinct from zero: a valid flag of 0 contributes to the known denominator, while an unknown flag does not.",
+            "The metric is defined over the available observed history, not lifetime behavior."
+          ],
+          "resultRefs": [],
+          "chartIds": []
+        }
+      },
+      "results": []
+    },
+    {
+      "name": "budget",
+      "prompt": "Calculate January purchase events by device. If warehouse budget is insufficient, explain the limitation without changing the period or metric.",
+      "metric": "purchases",
+      "numerical": false,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "checks": {
+        "completed": true,
+        "expectedRouting": true,
+        "adhocDefinition": true,
+        "evidence": true,
+        "unnecessaryClarification": false,
+        "limitedScope": true,
+        "preservedDates": true,
+        "unavailable": true,
+        "explanationWithoutEvidence": true,
+        "budget": true,
+        "canonicalValue": true
+      },
+      "taskCoverage": "not_assessed",
+      "correctness": true,
+      "repairAttempts": 1,
+      "repairSqlSubmissions": 0,
+      "latencyMs": 14112,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 14114,
+        "outputTokens": 447,
+        "cost": 0.0021883099999999997,
+        "analyst": {
+          "modelCalls": 3,
+          "inputTokens": 8419,
+          "outputTokens": 339,
+          "cost": 0.0006410599999999999
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 5695,
+          "outputTokens": 108,
+          "cost": 0.00154725
+        }
+      },
+      "calls": [
+        {
+          "id": "call_PqOQIu8kUyPrLhaatmRR6b2L",
+          "name": "get_metrics",
+          "arguments": "{\"name\":\"purchases\"}"
+        },
+        {
+          "id": "call_J6GNFFRD9eEhcloSaI2F7QTo",
+          "name": "run_metric",
+          "arguments": "{\"metric\":\"purchases\",\"startDate\":\"2021-01-01\",\"endDate\":\"2021-01-31\",\"dimensions\":[\"device\"],\"filters\":[]}"
+        },
+        {
+          "id": "call_vKA43mptb4j1uUs2lpXsIm5u",
+          "name": "present_analysis",
+          "arguments": "{\"narrative\":\"I could not calculate January 2021 purchase events by device because the warehouse rejected the exact query for insufficient budget. The requested period (January 1\u201331, 2021) and metric (purchase-event count, not reconstructed orders) were preserved; I did not substitute a shorter period, a different metric, or a partial device ranking.\",\"caveats\":[\"No purchase counts are available from this attempt, so the result should not be interpreted as zero or as missing purchases in the dataset.\",\"The available data covers November 1, 2020 through January 31, 2021; this request was limited to January 2021.\"],\"resultRefs\":[],\"chartIds\":[]}"
+        }
+      ],
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "I could not calculate January 2021 purchase events by device because the warehouse rejected the exact query for insufficient budget. The requested period (January 1\u201331, 2021) and metric (purchase-event count, not reconstructed orders) were preserved; I did not substitute a shorter period, a different metric, or a partial device ranking.",
+            "caveats": [
+              "No purchase counts are available from this attempt, so the result should not be interpreted as zero or as missing purchases in the dataset.",
+              "The available data covers November 1, 2020 through January 31, 2021; this request was limited to January 2021."
+            ],
+            "resultRefs": [],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2728,
+          "usage": {
+            "inputTokens": 5695,
+            "outputTokens": 108,
+            "cost": 0.00154725
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "I could not calculate January 2021 purchase events by device because the warehouse rejected the exact query for insufficient budget. The requested period (January 1\u201331, 2021) and metric (purchase-event count, not reconstructed orders) were preserved; I did not substitute a shorter period, a different metric, or a partial device ranking.",
+          "caveats": [
+            "No purchase counts are available from this attempt, so the result should not be interpreted as zero or as missing purchases in the dataset.",
+            "The available data covers November 1, 2020 through January 31, 2021; this request was limited to January 2021."
+          ],
+          "resultRefs": [],
+          "chartIds": []
+        }
+      },
+      "results": []
+    }
+  ]
+}

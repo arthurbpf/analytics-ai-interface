@@ -3,6 +3,9 @@ import { z } from "zod";
 const positiveInteger = z.coerce.number().int().positive();
 export const limits = {
   modelCalls: 8,
+  repairCalls: 2,
+  reviewCalls: 2,
+  totalModelCalls: 12,
   sqlCalls: 5,
   deadlineMs: 120000,
   outputTokens: 4096,
@@ -16,6 +19,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   OPENROUTER_API_KEY: z.string().min(1),
   OPENROUTER_MODEL: z.string().min(1),
+  OPENROUTER_REVIEW_MODEL: z.string().min(1).optional(),
   OPENROUTER_TITLE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
   APP_ORIGIN: z.url().default("http://localhost:5173"),
   GOOGLE_CLIENT_ID: z.string().optional(),
@@ -56,6 +60,7 @@ export function readConfig(env: NodeJS.ProcessEnv) {
     databaseUrl: value.DATABASE_URL,
     apiKey: value.OPENROUTER_API_KEY,
     model: value.OPENROUTER_MODEL,
+    reviewModel: value.OPENROUTER_REVIEW_MODEL ?? value.OPENROUTER_MODEL,
     projectId: value.GOOGLE_CLOUD_PROJECT,
     port: value.PORT,
     queryBytes,

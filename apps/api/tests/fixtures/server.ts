@@ -1,5 +1,4 @@
 import { setTimeout } from "node:timers/promises";
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
   analysisSchema,
@@ -10,7 +9,7 @@ import {
 import { createApp } from "../../src/app.ts";
 import type { ModelClient } from "../../src/llm/openrouter.ts";
 import { testStore } from "./database.ts";
-import { call, fixtureModel, fixtureWarehouse, sql } from "./analysis.ts";
+import { call, fixtureModel, fixtureReviewer, fixtureWarehouse, sql } from "./analysis.ts";
 
 const store = await testStore();
 await store.recover();
@@ -98,6 +97,26 @@ const model: ModelClient = {
         questions: ["Purchase events or purchasing sessions?"],
       });
     }
+    const last = messages.at(-1);
+    if (last?.role === "tool" && last.content.includes('"issues":')) {
+      const previous = messages
+        .filter(
+          (message) =>
+            message.role === "assistant" &&
+            message.toolCalls.some((tool) => tool.name === "present_analysis"),
+        )
+        .at(-1);
+      if (previous?.role === "assistant") {
+        const presentation = previous.toolCalls.find((tool) => tool.name === "present_analysis");
+        if (presentation) {
+          const raw: unknown = JSON.parse(presentation.arguments);
+          return call("present_analysis", {
+            ...analysisSchema.parse(raw),
+            narrative: "Desktop has 12 purchase events; mobile has 3.",
+          });
+        }
+      }
+    }
     let response = await scripted.complete(system, messages, tools, signal);
     const tool = response.message.toolCalls[0];
     if (!tool) {
@@ -124,10 +143,6 @@ const model: ModelClient = {
     if (tool.name !== "present_analysis") {
       return response;
     }
-    // Preserve the original transport test's pause before the narrative.
-    if (prompt === "Purchases by device") {
-      await setTimeout(60000, undefined, { signal });
-    }
     if (
       prompt.includes("Repair") &&
       !messages.some(
@@ -140,7 +155,6 @@ const model: ModelClient = {
       response = call("present_analysis", {
         ...analysisSchema.parse(raw),
         narrative: "Rejected draft — incorrect evidence.",
-        chartIds: [randomUUID()],
       });
     }
     if (prompt.includes("Markdown")) {
@@ -170,13 +184,46 @@ const model: ModelClient = {
       await setTimeout(75, undefined, { signal });
     }
     await update?.({ index: 0, name: presentation.name, arguments: presentation.arguments });
-    if (prompt.includes("Hold")) {
-      await setTimeout(60000, undefined, { signal });
-    }
     if (prompt.includes("Fail")) {
       throw new Error("Scripted model failure");
     }
     return response;
+  },
+};
+const reviewer = fixtureReviewer();
+const approvingModel = reviewer.model;
+reviewer.model = {
+  complete: async (system, messages, tools, signal) => {
+    const first = messages[0];
+    if (first?.role !== "user") {
+      throw new Error("Missing review input");
+    }
+    const raw: unknown = JSON.parse(first.content);
+    const input = z
+      .object({
+        conversation: z.array(
+          z.object({ role: z.string(), content: z.string().nullable().optional() }),
+        ),
+        candidate: analysisSchema,
+      })
+      .parse(raw);
+    const prompt =
+      input.conversation.filter((message) => message.role === "user").at(-1)?.content ?? "";
+    if (prompt.includes("Hold")) {
+      await setTimeout(60000, undefined, { signal });
+    }
+    if (prompt.includes("Review")) {
+      await setTimeout(2000, undefined, { signal });
+    }
+    if (prompt.includes("Reject") || input.candidate.narrative.includes("Rejected draft")) {
+      return call("review_analysis", {
+        approved: false,
+        issues: [
+          { problem: "The count is unsupported", correction: "Use the saved purchase counts" },
+        ],
+      });
+    }
+    return approvingModel.complete(system, messages, tools, signal);
   },
 };
 const backend = createApp({
@@ -189,6 +236,7 @@ const backend = createApp({
     }),
   },
   model,
+  reviewer,
   warehouse,
   queryBytes: 100n,
   turnBytes: 500n,

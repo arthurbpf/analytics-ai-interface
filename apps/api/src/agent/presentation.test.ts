@@ -75,7 +75,7 @@ it("final evidence and chart references must be complete and session-scoped", as
   await expect(validateAnalysis(answer, randomUUID(), store, [chart])).rejects.toThrow("not found");
   await expect(
     validateAnalysis({ ...answer, chartIds: [randomUUID()] }, sessionId, store, [chart]),
-  ).rejects.toThrow("unpublished");
+  ).rejects.toThrow("unprepared");
   results.set(result.ref, { ...result, complete: false });
   await expect(validateAnalysis(answer, sessionId, store, [chart])).rejects.toThrow("complete");
 });

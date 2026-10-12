@@ -1,4 +1,5 @@
 import type { ModelMessage } from "../../src/llm/messages.ts";
+import type { Reviewer } from "../../src/agent/review.ts";
 import type { AgentHistory } from "../../src/db/history.ts";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -103,16 +104,23 @@ export function memoryStore(): {
         columns: data.columns,
         complete: data.complete,
       })),
-    finish: async (_turn, status, error) => {
-      const turn = history.turns[0];
+    finish: async (finishedTurnId, status, error) => {
+      const turn = history.turns.find((candidate) => candidate.id === finishedTurnId);
       if (turn) {
         turn.status = status;
         turn.error = error;
       }
     },
-    complete: async (_session, turn, content) => {
+    complete: async (_session, turn, content, _usage, charts) => {
+      for (const chart of charts ?? []) {
+        history.messages.push({
+          id: randomUUID(),
+          turnId: turn,
+          content: { kind: "chart", chart },
+        });
+      }
       history.messages.push({ id: randomUUID(), turnId: turn, content });
-      const current = history.turns[0];
+      const current = history.turns.find((candidate) => candidate.id === turn);
       if (current) {
         current.status = "completed";
       }
@@ -181,4 +189,11 @@ export function fixtureModel(
 }
 export function toolOutputs(messages: ModelMessage[]) {
   return messages.filter((message) => message.role === "tool").map((message) => message.content);
+}
+
+export function fixtureReviewer(): Reviewer {
+  return {
+    modelName: "fixture-reviewer",
+    model: { complete: async () => call("review_analysis", { approved: true, issues: [] }) },
+  };
 }

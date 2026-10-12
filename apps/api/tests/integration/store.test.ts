@@ -2,9 +2,15 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { Store } from "../../src/db/store.ts";
-import { sessions } from "../../src/db/schema.ts";
+import { sessions, turns } from "../../src/db/schema.ts";
 import { testStore } from "../fixtures/database.ts";
-import { result, fixtureModel, fixtureWarehouse } from "../fixtures/analysis.ts";
+import {
+  call,
+  result,
+  fixtureModel,
+  fixtureReviewer,
+  fixtureWarehouse,
+} from "../fixtures/analysis.ts";
 import { validateChart } from "../../src/agent/presentation.ts";
 import { runAgent } from "../../src/agent/loop.ts";
 
@@ -136,7 +142,14 @@ it("answers a follow-up with persisted prior context and a fresh query", async (
     executions++;
     return execute(...args);
   };
-  const deps = { store, model: fixtureModel(), warehouse, queryBytes: 100n, turnBytes: 500n };
+  const deps = {
+    store,
+    model: fixtureModel(),
+    reviewer: fixtureReviewer(),
+    warehouse,
+    queryBytes: 100n,
+    turnBytes: 500n,
+  };
   await runAgent(deps, s.id, first.id, new AbortController().signal, async () => {});
   const followup = await store.startTurn(s.id, randomUUID(), "Now break that down further");
   const normal = fixtureModel();
@@ -190,4 +203,141 @@ it("persists clarification atomically as completed, retains artifacts and accept
     clarification.questions[0],
   );
   await store.finish(next.id, "interrupted", null);
+});
+
+it("retains private review artifacts while atomically publishing only selected charts", async () => {
+  const s = await session();
+  const turn = await store.startTurn(s.id, randomUUID(), "Purchases by device");
+  const deps = {
+    store,
+    model: fixtureModel(),
+    reviewer: fixtureReviewer(),
+    warehouse: fixtureWarehouse(),
+    queryBytes: 100n,
+    turnBytes: 500n,
+  };
+  const analyst = deps.model;
+  deps.model = {
+    complete: async (...args) => {
+      const response = await analyst.complete(...args);
+      const chart = response.message.toolCalls.find((tool) => tool.name === "publish_chart");
+      if (chart) {
+        response.message.toolCalls.push({ ...chart, id: randomUUID() });
+      }
+      return response;
+    },
+  };
+  const outcome = await runAgent(deps, s.id, turn.id, new AbortController().signal, async () => {});
+  expect(outcome.status).toBe("completed");
+  const privateHistory = await store.agentHistory(s.id);
+  expect(
+    privateHistory.messages.filter((message) => message.content.kind === "chart_candidate"),
+  ).toHaveLength(2);
+  expect(
+    privateHistory.messages.filter((message) => message.content.kind === "review"),
+  ).toHaveLength(1);
+  expect((await store.history(s.id)).messages.map((message) => message.content.kind)).toEqual([
+    "user",
+    "chart",
+    "analysis",
+  ]);
+  const [saved] = await store.db.select().from(turns).where(eq(turns.id, turn.id));
+  expect(saved?.usage).toMatchObject({
+    modelCalls: 4,
+    analyst: { modelCalls: 3 },
+    reviewer: { modelCalls: 1 },
+  });
+});
+
+it("keeps rejected charts and review records private across connection restart", async () => {
+  const s = await session();
+  const turn = await store.startTurn(s.id, randomUUID(), "Purchases by device");
+  const reviewer = fixtureReviewer();
+  reviewer.model = {
+    complete: async () =>
+      call("review_analysis", {
+        approved: false,
+        issues: [{ problem: "Unsupported count", correction: "Use the saved count" }],
+      }),
+  };
+  await runAgent(
+    {
+      store,
+      model: fixtureModel(),
+      reviewer,
+      warehouse: fixtureWarehouse(),
+      queryBytes: 100n,
+      turnBytes: 500n,
+    },
+    s.id,
+    turn.id,
+    new AbortController().signal,
+    async () => {},
+  );
+  const reopened = new Store(
+    process.env["TEST_DATABASE_URL"] ?? "postgresql://localhost:5432/analytics_test",
+  );
+  try {
+    const history = await reopened.history(s.id);
+    expect(history.turns[0]?.status).toBe("failed");
+    expect(history.messages.map((message) => message.content.kind)).toEqual(["user"]);
+    const privateHistory = await reopened.agentHistory(s.id);
+    expect(privateHistory.messages.some((message) => message.content.kind === "review")).toBe(true);
+    expect(
+      privateHistory.messages.some((message) => message.content.kind === "chart_candidate"),
+    ).toBe(true);
+    await expect(reopened.startTurn(s.id, turn.clientTurnId, "Retry")).rejects.toMatchObject({
+      code: "duplicate_turn",
+    });
+  } finally {
+    await reopened.pool.end();
+  }
+});
+
+it("rolls back charts and completion when publishing the answer fails", async () => {
+  const s = await session();
+  const turn = await store.startTurn(s.id, randomUUID(), "Purchases by device");
+  const chart = validateChart(
+    { type: "table", title: "Table", resultRef: result.ref, columns: ["device"] },
+    result,
+  );
+  await store.append(s.id, turn.id, { kind: "chart_candidate", chart });
+  const trigger = `reject_analysis_${randomUUID().replaceAll("-", "")}`;
+  // Restrict the injected database failure to this test's session.
+  await store.pool.query(`CREATE FUNCTION ${trigger}() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      IF NEW."sessionId" = '${s.id}'::uuid AND NEW.content->>'kind' = 'analysis' THEN
+        RAISE EXCEPTION 'Injected publication failure';
+      END IF;
+      RETURN NEW;
+    END $$`);
+  try {
+    await store.pool.query(
+      `CREATE TRIGGER ${trigger} BEFORE INSERT ON messages FOR EACH ROW EXECUTE FUNCTION ${trigger}()`,
+    );
+    await expect(
+      store.complete(
+        s.id,
+        turn.id,
+        {
+          kind: "analysis",
+          analysis: {
+            narrative: "Findings",
+            caveats: [],
+            resultRefs: [result.ref],
+            chartIds: [chart.id],
+          },
+        },
+        null,
+        [chart],
+      ),
+    ).rejects.toMatchObject({ cause: { message: "Injected publication failure" } });
+    const history = await store.history(s.id);
+    expect(history.turns[0]?.status).toBe("running");
+    expect(history.messages.map((message) => message.content.kind)).toEqual(["user"]);
+  } finally {
+    await store.pool.query(`DROP TRIGGER IF EXISTS ${trigger} ON messages`);
+    await store.pool.query(`DROP FUNCTION ${trigger}()`);
+    await store.finish(turn.id, "interrupted", null);
+  }
 });

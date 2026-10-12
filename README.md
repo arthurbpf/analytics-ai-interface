@@ -4,7 +4,7 @@ React + Vite + TanStack Router frontend and Node.js + Express backend, managed
 with pnpm workspaces and Turborepo. The backend implements durable analytics
 conversations and streamed chart/analysis artifacts. The frontend provides a
 chat page with shadcn/ui Lyra components, private sessions, Markdown, and charts. JSON API
-requests use ts-rest contracts; narrative drafts and charts stream over SSE.
+requests use ts-rest contracts; progress and approved answers/charts arrive over SSE.
 
 ## Development
 
@@ -87,10 +87,45 @@ revision, and title model usage are recorded separately from analytics. Duplicat
 submissions and restarts do not retry title requests. Pending titles are refreshed
 every two seconds, including after the analysis stream closes.
 
-Assistant narratives, provisional drafts, and caveats share a Markdown renderer with
+Assistant narratives and caveats share a Markdown renderer with
 GFM tables and fenced code. Raw HTML and embedded images are disabled, safe URL
 handling remains enabled, and wide tables/code scroll horizontally. User prompts
 remain literal text.
+
+## Analytical review
+
+Risky analyses are checked by a separate reviewer before publication.
+The reviewer runs for custom SQL, multiple results, charts, time series, filters,
+ranked results, multi-dimension results, and rate/comparison-style catalog metrics.
+It skips explanations without query evidence and a simple single-result catalog
+aggregate with at most one dimension. `OPENROUTER_REVIEW_MODEL` selects the reviewer
+model (configured locally as `openai/gpt-5.6-terra`); otherwise it uses
+`OPENROUTER_MODEL`. The reviewer reads the request/context, saved SQL and complete
+referenced evidence, metric definitions, and chart specifications. It returns
+approval or concrete analytical issues without execution tools.
+
+A rejection permits two analyst calls to repair the answer, including queries
+within the remaining warehouse budget, then one final review. Eight initial analyst
+calls, two repair calls, and two reviews share the two-minute deadline. Clarification
+turns bypass review. Review failure or a second rejection publishes no answer.
+Progress remains visible, while narrative drafts and candidate charts stay private.
+Approved answers and their selected charts publish in one database transaction.
+Review records and analyst/reviewer usage are saved for diagnosis and evaluation;
+interrupted work is never automatically replayed. No new database migration is needed.
+
+Review is an additional fallible check, not proof of analytical correctness. Live
+comparison commands write separate baseline and reviewed artifacts:
+
+```sh
+pnpm --filter @analytics/api test:evaluation
+ANALYTICS_EVALUATION_MODE=baseline pnpm --filter @analytics/api test:evaluation tests/evaluation/routing.test.ts
+```
+
+The review-specific evaluation uses controlled synthetic evidence, scripted
+candidates/repairs, and a live reviewer. The routing evaluation uses live analyst,
+reviewer, and BigQuery calls. Both require configured credentials and incur service
+costs. Run PostgreSQL integration and browser suites sequentially: they share the
+test database, and startup recovery interrupts running turns.
 
 ## Checks
 
@@ -122,7 +157,7 @@ The dependency and devenv lockfiles are included. CI installs should use
 
 ## Backend
 
-- `apps/api/src/agent`: sequential tool loop, bounded context, validated presentation.
+- `apps/api/src/agent`: sequential analyst loop, bounded review, validated presentation.
 - `apps/api/src/analytics`: definitions, SQL guardrails, budgets, BigQuery execution.
 - `apps/api/src/llm`: OpenRouter adapter.
 - `apps/api/src/db` and `apps/api/drizzle`: PostgreSQL store and migrations.
@@ -162,6 +197,6 @@ these suites make no paid API calls. Outside devenv, install Chromium with
 See [docs/frontend-test-cases.md](docs/frontend-test-cases.md) for frontend coverage
 and [docs/backend-test-cases.md](docs/backend-test-cases.md) for acceptance cases
 and verification status. Live analytics accuracy and cost calibration remain
-unverified. Railway is the hosting target; deployment, backups,
-and vector retrieval remain unimplemented. The current API
-binds to loopback and does not serve the built frontend.
+unverified. Railway is the hosting target; see [docs/deployment.md](docs/deployment.md)
+for the deployment runbook. Backups, retention, and vector retrieval remain
+open work.

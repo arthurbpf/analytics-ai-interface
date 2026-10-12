@@ -5,6 +5,7 @@ import { runAgent, type AgentDependencies } from "./loop.ts";
 import {
   call,
   fixtureModel,
+  fixtureReviewer,
   fixtureWarehouse,
   memoryStore,
   sessionId,
@@ -20,6 +21,7 @@ function setup() {
   const deps: AgentDependencies = {
     store: state.store,
     model: fixtureModel(),
+    reviewer: fixtureReviewer(),
     warehouse: fixtureWarehouse(),
     queryBytes: 100n,
     turnBytes: 500n,
@@ -254,7 +256,7 @@ it("plain prose cannot complete; last call exposes both terminal tools", async (
   expect(requests).toBe(8);
   expect(history.messages.some((message) => message.content.kind === "analysis")).toBe(false);
 });
-it("keeps charts after disconnect and aborts pending model work", async () => {
+it("keeps candidate charts private after disconnect and aborts pending model work", async () => {
   const { deps, events, emit, history } = setup();
   const controller = new AbortController();
   deps.model = fixtureModel(async (signal) => {
@@ -264,7 +266,8 @@ it("keeps charts after disconnect and aborts pending model work", async () => {
   expect((await runAgent(deps, sessionId, turnId, controller.signal, emit)).status).toBe(
     "interrupted",
   );
-  expect(events.some((event) => event.type === "chart_ready")).toBe(true);
+  expect(events.some((event) => event.type === "chart_ready")).toBe(false);
+  expect(history.messages.some((message) => message.content.kind === "chart_candidate")).toBe(true);
   expect(history.turns[0]?.status).toBe("interrupted");
 });
 it("does not emit success on persistence failure or retry vendor failure", async () => {
@@ -326,7 +329,7 @@ it("executes tool calls sequentially and rejects presentation before later calls
     "completed",
   );
 });
-it("rejects unpublished final chart references", async () => {
+it("rejects unprepared final chart references", async () => {
   const { deps, emit } = setup();
   deps.model = {
     complete: async () =>
@@ -369,7 +372,7 @@ it("enforces SQL and chart counts separately from the model budget", async () =>
     (await runAgent(charts.deps, sessionId, turnId, new AbortController().signal, charts.emit))
       .status,
   ).toBe("failed");
-  expect(charts.events.filter((event) => event.type === "chart_ready")).toHaveLength(4);
+  expect(charts.events.filter((event) => event.type === "chart_ready")).toHaveLength(0);
 });
 it("retrieves existing results without additional warehouse execution", async () => {
   const { deps, results, emit } = setup();
@@ -411,7 +414,7 @@ it("refuses to stream a chart when its persistence fails", async () => {
   const { deps, emit, events } = setup();
   const append = deps.store.append;
   deps.store.append = async (...args) => {
-    if (args[2].kind === "chart") {
+    if (args[2].kind === "chart_candidate") {
       throw new Error("Database offline");
     }
     await append(...args);
@@ -422,7 +425,7 @@ it("refuses to stream a chart when its persistence fails", async () => {
   expect(events.some((event) => event.type === "chart_ready")).toBe(false);
 });
 
-it("streams only presentation drafts, discards failed validation, and replaces with a repaired answer", async () => {
+it("withholds presentation drafts through validation and publishes only the corrected answer", async () => {
   const { deps, events, emit, history } = setup();
   let attempts = 0;
   deps.model = {
@@ -449,17 +452,12 @@ it("streams only presentation drafts, discards failed validation, and replaces w
   expect((await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).status).toBe(
     "completed",
   );
-  const starts = events.filter((event) => event.type === "analysis_started");
-  expect(starts).toHaveLength(2);
-  expect(events.filter((event) => event.type === "analysis_discarded")).toEqual([
-    { type: "analysis_discarded", turnId, draftId: starts[0]?.draftId },
-  ]);
-  const draft = events
-    .filter((event) => event.type === "analysis_delta")
-    .filter((event) => event.draftId === starts[1]?.draftId)
-    .map((event) => event.delta)
-    .join("");
-  expect(draft).toBe('Repaired "answer"\n📊');
+  expect(events.filter((event) => event.type === "analysis_started")).toHaveLength(0);
+  expect(events.filter((event) => event.type === "analysis_delta")).toHaveLength(0);
+  expect(events.filter((event) => event.type === "analysis_discarded")).toHaveLength(0);
+  expect(events.find((event) => event.type === "analysis_ready")).toMatchObject({
+    analysis: { narrative: 'Repaired "answer"\n📊' },
+  });
   expect(JSON.stringify(events)).not.toContain("secret");
   expect(history.messages.filter((message) => message.content.kind === "analysis")).toHaveLength(1);
 });
@@ -488,7 +486,7 @@ it("completes clarification once, retains results, discards drafts and enters fo
     history.messages.filter((message) => message.content.kind === "clarification"),
   ).toHaveLength(1);
   expect(events.filter((event) => event.type === "clarification_ready")).toHaveLength(1);
-  expect(events.some((event) => event.type === "analysis_discarded")).toBe(true);
+  expect(events.some((event) => event.type === "analysis_discarded")).toBe(false);
   expect(events.some((event) => event.type === "analysis_ready")).toBe(false);
   expect(results.size).toBe(1);
   const { buildContext } = await import("./context.ts");

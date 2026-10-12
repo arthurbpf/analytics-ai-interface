@@ -2,7 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { afterEach, expect, it } from "vitest";
 import { z } from "zod";
-import { metricRequestSchema } from "@analytics/contracts";
+import { metricRequestSchema, type MetricRequest } from "@analytics/contracts";
 import { runAgent } from "../../src/agent/loop.ts";
 import { OpenRouter } from "../../src/llm/openrouter.ts";
 import { BigQueryWarehouse } from "../../src/analytics/bigquery.ts";
@@ -10,6 +10,13 @@ import { memoryStore, sessionId, turnId } from "../fixtures/analysis.ts";
 
 const key = z.string().min(1).parse(process.env["OPENROUTER_API_KEY"]);
 const modelName = z.string().min(1).parse(process.env["OPENROUTER_MODEL"]);
+const mode = z
+  .enum(["baseline", "reviewed"])
+  .default("reviewed")
+  .parse(process.env["ANALYTICS_EVALUATION_MODE"]);
+const reviewModel = process.env["OPENROUTER_REVIEW_MODEL"] ?? modelName;
+const reviewer =
+  mode === "baseline" ? null : { model: new OpenRouter(key, reviewModel), modelName: reviewModel };
 const project = z.string().min(1).parse(process.env["GOOGLE_CLOUD_PROJECT"]);
 const cases = [
   {
@@ -28,6 +35,13 @@ const cases = [
     name: "adhoc",
     prompt:
       "How many valid transaction IDs occur on purchase events from more than one user in the entire history? This cross-user conflict diagnostic is outside the metric catalog.",
+    metric: null,
+    numerical: true,
+  },
+  {
+    name: "multi-part",
+    prompt:
+      "Compare recorded USD purchase-event revenue and purchase-event counts by device in November 2020 and January 2021. Give both sets of values and distinguish descriptive comparisons from causal explanations.",
     metric: null,
     numerical: true,
   },
@@ -60,14 +74,26 @@ const cases = [
     numerical: false,
   },
 ] as const;
+function isPurchaseCount(request: MetricRequest) {
+  return (
+    request.metric === "purchases" ||
+    (request.metric === "event_counts" &&
+      request.filters.some(
+        (filter) =>
+          filter.field === "event_name" && filter.op === "eq" && filter.value === "purchase",
+      ))
+  );
+}
 const records: Record<string, unknown>[] = [];
 afterEach(async () => {
   await writeFile(
-    new URL("../../../../docs/live-harness-evaluations.json", import.meta.url),
+    new URL(`../../../../docs/live-harness-evaluations-${mode}.json`, import.meta.url),
     JSON.stringify(
       {
         evaluatedAt: new Date().toISOString(),
         model: modelName,
+        reviewerModel: mode === "reviewed" ? reviewModel : null,
+        mode,
         project,
         assessment:
           "Automatic routing, evidence and parameter checks; narratives retained for manual analytical review. Reference validation alone does not prove grounding.",
@@ -100,6 +126,7 @@ it.each(cases)("evaluates $name routing, usage and evidence", async (scenario) =
     {
       store,
       model: new OpenRouter(key, modelName),
+      reviewer,
       warehouse: new BigQueryWarehouse(project),
       queryBytes: scenario.name === "budget" ? 1n : 1073741824n,
       catalogQueryBytes: scenario.name === "budget" ? 1n : 2147483648n,
@@ -127,15 +154,7 @@ it.each(cases)("evaluates $name routing, usage and evidence", async (scenario) =
       return false;
     }
     const parsed = metricRequestSchema.safeParse(JSON.parse(call.arguments));
-    return (
-      parsed.success &&
-      (parsed.data.metric === "purchases" ||
-        (parsed.data.metric === "event_counts" &&
-          parsed.data.filters.some(
-            (filter) =>
-              filter.field === "event_name" && filter.op === "eq" && filter.value === "purchase",
-          )))
-    );
+    return parsed.success && isPurchaseCount(parsed.data);
   });
   const checks = {
     completed: outcome.status === "completed",
@@ -185,10 +204,45 @@ it.each(cases)("evaluates $name routing, usage and evidence", async (scenario) =
       scenario.name !== "catalog" ||
       (final?.kind === "analysis" && /362[,.]?165/.test(final.analysis.narrative)),
   };
+  const firstReview = history.messages.findIndex(({ content }) => content.kind === "review");
+  const repairSqlSubmissions =
+    firstReview < 0
+      ? 0
+      : history.messages
+          .slice(firstReview + 1)
+          .flatMap(({ content }) =>
+            content.kind === "model" && content.message.role === "assistant"
+              ? content.message.toolCalls.filter(
+                  (call) => call.name === "run_metric" || call.name === "run_sql",
+                )
+              : [],
+          ).length;
   records.push({
     ...scenario,
     outcome,
     checks,
+    taskCoverage:
+      scenario.name === "multi-part"
+        ? ["revenue", "purchases"].every((metric) =>
+            ["2020-11-01", "2021-01-01"].every((startDate) =>
+              [...results.values()].some(
+                (result) =>
+                  result.complete &&
+                  final?.kind === "analysis" &&
+                  final.analysis.resultRefs.includes(result.ref) &&
+                  result.catalog &&
+                  (metric === "purchases"
+                    ? isPurchaseCount(result.catalog.arguments)
+                    : result.catalog.arguments.metric === metric) &&
+                  result.catalog.arguments.startDate === startDate &&
+                  result.catalog.arguments.endDate ===
+                    (startDate === "2020-11-01" ? "2020-11-30" : "2021-01-31"),
+              ),
+            ),
+          )
+          ? "full"
+          : "partial"
+        : "not_assessed",
     correctness:
       checks.adhocDefinition &&
       checks.completed &&
@@ -202,9 +256,13 @@ it.each(cases)("evaluates $name routing, usage and evidence", async (scenario) =
       checks.budget &&
       checks.canonicalValue,
     repairAttempts: repairs.length,
+    repairSqlSubmissions,
     latencyMs: Date.now() - start,
     usage: savedUsage,
     calls,
+    reviews: history.messages.flatMap(({ content }) =>
+      content.kind === "review" ? [content.review] : [],
+    ),
     final,
     results: [...results.values()],
   });
@@ -247,6 +305,7 @@ it.each(cases)("evaluates $name routing, usage and evidence", async (scenario) =
       {
         store,
         model: new OpenRouter(key, modelName),
+        reviewer,
         warehouse: new BigQueryWarehouse(project),
         queryBytes: 1073741824n,
         catalogQueryBytes: 2147483648n,
@@ -276,6 +335,9 @@ it.each(cases)("evaluates $name routing, usage and evidence", async (scenario) =
       name: "filter-preserving-followup",
       outcome: followup,
       final: history.messages.at(-1)?.content,
+      reviews: history.messages
+        .filter((message) => message.turnId === nextId)
+        .flatMap(({ content }) => (content.kind === "review" ? [content.review] : [])),
       results: fresh,
       usage: savedUsage,
       calls: followupCalls,
@@ -299,14 +361,8 @@ it.each(cases)("evaluates $name routing, usage and evidence", async (scenario) =
     expect(
       fresh.every(
         (result) =>
-          (result.catalog?.arguments.metric === "purchases" ||
-            (result.catalog?.arguments.metric === "event_counts" &&
-              result.catalog.arguments.filters.some(
-                (filter) =>
-                  filter.field === "event_name" &&
-                  filter.op === "eq" &&
-                  filter.value === "purchase",
-              ))) &&
+          result.catalog &&
+          isPurchaseCount(result.catalog.arguments) &&
           result.catalog.arguments.startDate === "2021-01-01" &&
           result.catalog.arguments.endDate === "2021-01-31" &&
           result.catalog.arguments.grain === "week" &&

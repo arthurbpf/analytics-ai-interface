@@ -38,9 +38,9 @@ const descriptions = {
     "Execute one guarded read-only query. Requires justification for a clear computable request outside the catalog. Prefer bounded aggregates with date filters; errors include correction hints. Supply display metadata keyed by output alias: readable labels and integer, decimal, usd, percentage (a ratio, not a 0–100 value), or seconds formats only when units are known.",
   get_result: "Retrieve a saved result belonging to this session without rerunning its query.",
   publish_chart:
-    "Validate and publish a complete chart with saved data immediately. Returns its chart ID for the final answer.",
+    "Validate and save a candidate chart from complete saved data. Returns its ID; selected charts publish with the approved final answer.",
   present_analysis:
-    "Complete the turn with narrative, caveats, complete evidence references, and published chart IDs. Metric explanations may omit references; dataset-specific numerical claims require saved evidence. Must be last. Never invent numbers.",
+    "Complete the turn with narrative, caveats, complete evidence references, and prepared chart IDs. The answer must pass analytical review before publication. Metric explanations may omit references; dataset-specific numerical claims require saved evidence. Must be last. Never invent numbers.",
 };
 export const toolDefinitions: ToolDefinition[] = Object.entries(toolSchemas).map(
   ([name, schema]) => {

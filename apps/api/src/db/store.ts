@@ -9,6 +9,7 @@ import {
   turnSchema,
   type ApiError,
   type QueryResult,
+  type PublishedChart,
   type TerminalStatus,
 } from "@analytics/contracts";
 import * as schema from "./schema.ts";
@@ -262,13 +263,31 @@ export class Store {
     turnId: string,
     content: Extract<StoredMessageContent, { kind: "analysis" | "clarification" }>,
     usage: typeof schema.turns.$inferInsert.usage,
+    charts: PublishedChart[] = [],
   ) {
     await this.db.transaction(async (tx) => {
-      await tx.insert(schema.messages).values({ sessionId, turnId, content });
-      await tx
+      const updated = await tx
         .update(schema.turns)
         .set({ status: "completed", finishedAt: new Date(), usage })
-        .where(and(eq(schema.turns.id, turnId), eq(schema.turns.status, "running")));
+        .where(
+          and(
+            eq(schema.turns.id, turnId),
+            eq(schema.turns.sessionId, sessionId),
+            eq(schema.turns.status, "running"),
+          ),
+        )
+        .returning({ id: schema.turns.id });
+      if (!updated.length) {
+        throw new RequestError(409, "turn_finished", "Turn is no longer running");
+      }
+      for (const chart of charts) {
+        await tx.insert(schema.messages).values({
+          sessionId,
+          turnId,
+          content: { kind: "chart", chart },
+        });
+      }
+      await tx.insert(schema.messages).values({ sessionId, turnId, content });
       await tx
         .update(schema.sessions)
         .set({ updatedAt: new Date() })

@@ -1,4 +1,5 @@
 import type { StoredMessageContent } from "./history.ts";
+import type { TurnUsage } from "../llm/usage.ts";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -63,12 +64,7 @@ export const turns = pgTable(
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     finishedAt: timestamp({ withTimezone: true }),
     error: jsonb().$type<ApiError>(),
-    usage: jsonb().$type<{
-      modelCalls: number;
-      inputTokens: number | null;
-      outputTokens: number | null;
-      cost: number | null;
-    }>(),
+    usage: jsonb().$type<TurnUsage>(),
   },
   (table) => [
     uniqueIndex("turn_request_unique").on(table.sessionId, table.clientTurnId),

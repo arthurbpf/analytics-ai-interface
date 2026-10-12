@@ -1,0 +1,3495 @@
+{
+  "evaluatedAt": "2026-10-12T23:35:11.454Z",
+  "reviewerModel": "openai/gpt-5.6-luna",
+  "assessment": "Live reviewer with controlled synthetic saved evidence and scripted candidates/repairs. Paired baseline isolates review effects; this does not establish end-to-end live warehouse accuracy. Candidate correctness labels are the fixture oracle. Narratives and verdicts are retained for manual assessment.",
+  "cases": [
+    {
+      "name": "correct-counts",
+      "mode": "baseline",
+      "expectedInitialRejection": false,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 2,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "correct-counts",
+      "mode": "reviewed",
+      "expectedInitialRejection": false,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 3347,
+      "usage": {
+        "modelCalls": 2,
+        "inputTokens": 5453,
+        "outputTokens": 123,
+        "cost": 0.00150475,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 5453,
+          "outputTokens": 123,
+          "cost": 0.00150475
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 3347,
+          "usage": {
+            "inputTokens": 5453,
+            "outputTokens": 123,
+            "cost": 0.00150475
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "wrong-value",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 1,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Desktop recorded 120 purchase events and mobile recorded 3 in November.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "wrong-value",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 4541,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 11196,
+        "outputTokens": 181,
+        "cost": 0.003004,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11196,
+          "outputTokens": 181,
+          "cost": 0.003004
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Desktop recorded 120 purchase events and mobile recorded 3 in November.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2603,
+          "usage": {
+            "inputTokens": 5449,
+            "outputTokens": 137,
+            "cost": 0.00152055
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The narrative reports desktop as 120 purchase events, but the saved result for the cited query contains 12 desktop purchase events (and 3 mobile), so the desktop value is numerically unsupported and incorrect.",
+                "correction": "Change the narrative to: \"Desktop recorded 12 purchase events and mobile recorded 3 in November.\""
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 1938,
+          "usage": {
+            "inputTokens": 5747,
+            "outputTokens": 44,
+            "cost": 0.00148345
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "wrong-grain",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 0,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Desktop had 12 distinct orders and mobile had 3 distinct orders in November.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "wrong-grain",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 5617,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 11219,
+        "outputTokens": 265,
+        "cost": 0.00311055,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11219,
+          "outputTokens": 265,
+          "cost": 0.00311055
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Desktop had 12 distinct orders and mobile had 3 distinct orders in November.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 3168,
+          "usage": {
+            "inputTokens": 5451,
+            "outputTokens": 204,
+            "cost": 0.00160145
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The narrative calls the 12 desktop and 3 mobile results “distinct orders,” but the executed SQL uses COUNT(*) over purchase events and the authoritative definition is purchase-event count, not reconstructed or distinct orders. The caveat itself also says these are not reconstructed orders.",
+                "correction": "Describe the results as 12 desktop purchase events and 3 mobile purchase events in November 2020 (or simply purchases under the defined purchase-event metric), without calling them distinct orders."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 2449,
+          "usage": {
+            "inputTokens": 5768,
+            "outputTokens": 61,
+            "cost": 0.0015091
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "wrong-denominator",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 0,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Desktop contributed 20% of November purchase events (12 desktop and 3 mobile).",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "wrong-denominator",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 5740,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 11229,
+        "outputTokens": 265,
+        "cost": 0.00311305,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11229,
+          "outputTokens": 265,
+          "cost": 0.00311305
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Desktop contributed 80% of the 15 recorded November purchase events (12 desktop and 3 mobile).",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Desktop contributed 20% of November purchase events (12 desktop and 3 mobile).",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 3578,
+          "usage": {
+            "inputTokens": 5457,
+            "outputTokens": 215,
+            "cost": 0.00161615
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The narrative miscalculates the share: the saved result has 12 desktop and 3 mobile purchase events, so desktop accounts for 12/(12+3) = 80%, not 20%. The parenthetical counts themselves support 80%.",
+                "correction": "Report that desktop represented 80% of November purchase events (12 of 15), retaining the caveat that these are purchase events rather than reconstructed orders."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "Desktop contributed 80% of the 15 recorded November purchase events (12 desktop and 3 mobile).",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 2161,
+          "usage": {
+            "inputTokens": 5772,
+            "outputTokens": 50,
+            "cost": 0.0014969
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "top-n-overclaim",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 0,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Desktop recorded all November purchase events, representing 100% of the total.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "top_n",
+            "topN": {
+              "by": "purchases",
+              "requestedCount": 1,
+              "returnedCount": 1,
+              "groupCount": "2",
+              "omittedGroupCount": "1"
+            }
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device ORDER BY purchases DESC LIMIT 1",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            }
+          ],
+          "complete": true,
+          "totalRows": "1"
+        }
+      ]
+    },
+    {
+      "name": "top-n-overclaim",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 6017,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 11325,
+        "outputTokens": 388,
+        "cost": 0.00328465,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11325,
+          "outputTokens": 388,
+          "cost": 0.00328465
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Desktop was the top device with 12 recorded November purchase events. This top-1 result does not establish its share of all purchase events.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Desktop recorded all November purchase events, representing 100% of the total.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 3425,
+          "usage": {
+            "inputTokens": 5485,
+            "outputTokens": 230,
+            "cost": 0.00164115
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The narrative claims desktop recorded all November purchase events and represented 100% of the total, but the saved result is explicitly top-1 with two device groups and one omitted group. The query returns only desktop's 12 events, so the omitted device's count and the overall total are unknown.",
+                "correction": "State only that desktop was the leading retrieved device with 12 purchase events. Do not report 100% or say all events unless an untruncated aggregation (or the omitted group's count and total) is retrieved; retain the purchase-event, not reconstructed-order, caveat."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "Desktop was the top device with 12 recorded November purchase events. This top-1 result does not establish its share of all purchase events.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 2592,
+          "usage": {
+            "inputTokens": 5840,
+            "outputTokens": 158,
+            "cost": 0.0016435
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "top_n",
+            "topN": {
+              "by": "purchases",
+              "requestedCount": 1,
+              "returnedCount": 1,
+              "groupCount": "2",
+              "omittedGroupCount": "1"
+            }
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device ORDER BY purchases DESC LIMIT 1",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            }
+          ],
+          "complete": true,
+          "totalRows": "1"
+        }
+      ]
+    },
+    {
+      "name": "causal-overclaim",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 0,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Using desktop rather than mobile caused customers to purchase four times as often.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "causal-overclaim",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 7260,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 11241,
+        "outputTokens": 345,
+        "cost": 0.00321205,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11241,
+          "outputTokens": 345,
+          "cost": 0.00321205
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Using desktop rather than mobile caused customers to purchase four times as often.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 3929,
+          "usage": {
+            "inputTokens": 5450,
+            "outputTokens": 261,
+            "cost": 0.0016696
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The narrative claims that using desktop caused customers to purchase more often. The saved SQL counts purchase events (12 desktop versus 3 mobile), not customers, purchase rates, or causal effects; no user/session denominator or experimental design supports that wording.",
+                "correction": "State the descriptive result at the event grain: “There were 12 recorded purchase events on desktop and 3 on mobile in November 2020—4× as many desktop purchase events.” Explicitly note that this does not show that device caused purchasing or compare customer purchase frequency/rates."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 3330,
+          "usage": {
+            "inputTokens": 5791,
+            "outputTokens": 84,
+            "cost": 0.00154245
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "lifetime-overclaim",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 0,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Over their entire lifetimes, desktop customers placed 12 purchases and mobile customers placed 3.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "lifetime-overclaim",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 4790,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 11266,
+        "outputTokens": 263,
+        "cost": 0.0031199,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11266,
+          "outputTokens": 263,
+          "cost": 0.0031199
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Over their entire lifetimes, desktop customers placed 12 purchases and mobile customers placed 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 3334,
+          "usage": {
+            "inputTokens": 5455,
+            "outputTokens": 220,
+            "cost": 0.00162165
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The narrative says “Over their entire lifetimes” and calls the counts purchases by customers, but the saved SQL filters event dates to November 1–30, 2020 and counts purchase events grouped by device. The authoritative definition explicitly says purchases are purchase-event counts, not reconstructed orders, and the available history is only November 1, 2020 through January 31, 2021.",
+                "correction": "State: “In November 2020, there were 12 recorded purchase events on desktop and 3 on mobile.” Retain the caveat that these are recorded purchase events, not reconstructed orders, and avoid customer/lifetime wording."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 1456,
+          "usage": {
+            "inputTokens": 5811,
+            "outputTokens": 43,
+            "cost": 0.00149825
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "sql-filter-mismatch",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 0,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' GROUP BY device",
+          "purpose": "All events by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "sql-filter-mismatch",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 5814,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 11224,
+        "outputTokens": 282,
+        "cost": 0.0031322,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11224,
+          "outputTokens": 282,
+          "cost": 0.0031322
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "The saved query counted all November events rather than purchase events, so it cannot establish the requested purchase-event counts.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2863,
+          "usage": {
+            "inputTokens": 5446,
+            "outputTokens": 173,
+            "cost": 0.001563
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The saved SQL counts every event by device (`COUNT(*)` with no `event_name = 'purchase'` predicate), despite the narrative claiming purchase-event counts. The returned 12 desktop and 3 mobile values therefore do not support the requested metric.",
+                "correction": "Filter the query to purchase events, e.g. `WHERE event_name = 'purchase' AND _TABLE_SUFFIX BETWEEN '20201101' AND '20201130'`, then group by device and report the resulting counts."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "The saved query counted all November events rather than purchase events, so it cannot establish the requested purchase-event counts.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 2950,
+          "usage": {
+            "inputTokens": 5778,
+            "outputTokens": 109,
+            "cost": 0.0015692
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' GROUP BY device",
+          "purpose": "All events by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "misleading-chart",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 1,
+      "usage": {
+        "modelCalls": 2,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": ["2894a1da-de88-4216-b6fc-e6d48f0c239a"]
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "misleading-chart",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "failed",
+        "error": {
+          "code": "analysis_rejected",
+          "message": "The analysis did not pass verification after repair. No answer was published; saved artifacts are retained."
+        }
+      },
+      "latencyMs": 9259,
+      "usage": {
+        "modelCalls": 5,
+        "inputTokens": 11846,
+        "outputTokens": 690,
+        "cost": 0.0037773,
+        "analyst": {
+          "modelCalls": 3,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11846,
+          "outputTokens": 690,
+          "cost": 0.0037773
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "review",
+        "review": {
+          "candidate": {
+            "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 4121,
+          "usage": {
+            "inputTokens": 6065,
+            "outputTokens": 287,
+            "cost": 0.00185455
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The saved SQL selects `device.category` but groups by the full `device` struct (`GROUP BY device`). That is not reliably a device-category breakdown: differing non-category fields could produce multiple rows for the same category, so the result cannot generally support the requested grain or the reported category totals.",
+                "correction": "Re-run or repair the query to group by `device.category` (or `GROUP BY 1`) while retaining the November 1–30, 2020 and `event_name = 'purchase'` filters, then present the resulting category-level purchase-event counts. Omitting the chart fixes its prior misleading title, but does not correct the underlying saved SQL."
+              }
+            ]
+          },
+          "error": null
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": ["0efc72a1-d291-4fd3-a461-3a45126b9c28"]
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 5138,
+          "usage": {
+            "inputTokens": 5781,
+            "outputTokens": 403,
+            "cost": 0.00192275
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The chart title says “Distinct customer orders by device,” but the saved metric and SQL count purchase events, explicitly not reconstructed orders or distinct customers. This mislabels what the chart represents.",
+                "correction": "Rename the chart to “Purchase events by device” (or equivalent) and keep the caveat that these are purchase-event counts, not orders."
+              },
+              {
+                "problem": "The SQL selects `device.category` but groups by the entire `device` struct. That is not the requested device-category grain and can split one category into multiple rows when other struct fields differ (or otherwise make the grouping needlessly dependent on unrelated fields).",
+                "correction": "Group by the selected category, for example `GROUP BY device.category` or `GROUP BY 1`, while retaining the November date and `event_name = 'purchase'` filters."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "In November 2020, desktop recorded 12 purchase events and mobile recorded 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 4121,
+          "usage": {
+            "inputTokens": 6065,
+            "outputTokens": 287,
+            "cost": 0.00185455
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The saved SQL selects `device.category` but groups by the full `device` struct (`GROUP BY device`). That is not reliably a device-category breakdown: differing non-category fields could produce multiple rows for the same category, so the result cannot generally support the requested grain or the reported category totals.",
+                "correction": "Re-run or repair the query to group by `device.category` (or `GROUP BY 1`) while retaining the November 1–30, 2020 and `event_name = 'purchase'` filters, then present the resulting category-level purchase-event counts. Omitting the chart fixes its prior misleading title, but does not correct the underlying saved SQL."
+              }
+            ]
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "correct-explanation",
+      "mode": "baseline",
+      "expectedInitialRejection": false,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 0,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Engagement rate divides engaged sessions by sessions with known valid engagement flags. Unknown flags are excluded from the denominator and reported separately. The rate is null when no flags are known.",
+          "caveats": [],
+          "resultRefs": [],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "correct-explanation",
+      "mode": "reviewed",
+      "expectedInitialRejection": false,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 2699,
+      "usage": {
+        "modelCalls": 2,
+        "inputTokens": 5209,
+        "outputTokens": 92,
+        "cost": 0.00140655,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 5209,
+          "outputTokens": 92,
+          "cost": 0.00140655
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Engagement rate divides engaged sessions by sessions with known valid engagement flags. Unknown flags are excluded from the denominator and reported separately. The rate is null when no flags are known.",
+          "caveats": [],
+          "resultRefs": [],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Engagement rate divides engaged sessions by sessions with known valid engagement flags. Unknown flags are excluded from the denominator and reported separately. The rate is null when no flags are known.",
+            "caveats": [],
+            "resultRefs": [],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2699,
+          "usage": {
+            "inputTokens": 5209,
+            "outputTokens": 92,
+            "cost": 0.00140655
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "correct-unavailable",
+      "mode": "baseline",
+      "expectedInitialRejection": false,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 0,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "February 2021 revenue is unavailable: the sample history ends on January 31, 2021. Missing coverage does not mean zero revenue.",
+          "caveats": [],
+          "resultRefs": [],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "correct-unavailable",
+      "mode": "reviewed",
+      "expectedInitialRejection": false,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 2121,
+      "usage": {
+        "modelCalls": 2,
+        "inputTokens": 5202,
+        "outputTokens": 53,
+        "cost": 0.001358,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 1,
+          "inputTokens": 5202,
+          "outputTokens": 53,
+          "cost": 0.001358
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "February 2021 revenue is unavailable: the sample history ends on January 31, 2021. Missing coverage does not mean zero revenue.",
+          "caveats": [],
+          "resultRefs": [],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "February 2021 revenue is unavailable: the sample history ends on January 31, 2021. Missing coverage does not mean zero revenue.",
+            "caveats": [],
+            "resultRefs": [],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2121,
+          "usage": {
+            "inputTokens": 5202,
+            "outputTokens": 53,
+            "cost": 0.001358
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "multi-part-calculation",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 1,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Desktop recorded 12 purchase events and $120 revenue; mobile recorded 3 events and $60 revenue. Desktop's average revenue per event ($10) exceeded mobile's ($20).",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": [
+            "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+            "00000000-0000-4000-8000-000000000001"
+          ],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        },
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "00000000-0000-4000-8000-000000000001",
+          "sql": "SELECT device.category AS device, SUM(ecommerce.purchase_revenue_in_usd) AS revenue FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Recorded USD purchase-event revenue by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "revenue",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "revenue": 120
+            },
+            {
+              "device": "mobile",
+              "revenue": 60
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "multi-part-calculation",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 5702,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 11771,
+        "outputTokens": 329,
+        "cost": 0.0033253500000000004,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11771,
+          "outputTokens": 329,
+          "cost": 0.0033253500000000004
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Desktop recorded 12 purchase events and $120 revenue; mobile recorded 3 events and $60 revenue. Mobile's average revenue per purchase event was $20 versus desktop's $10.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": [
+            "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+            "00000000-0000-4000-8000-000000000001"
+          ],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "Desktop recorded 12 purchase events and $120 revenue; mobile recorded 3 events and $60 revenue. Desktop's average revenue per event ($10) exceeded mobile's ($20).",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": [
+              "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+              "00000000-0000-4000-8000-000000000001"
+            ],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2962,
+          "usage": {
+            "inputTokens": 5708,
+            "outputTokens": 183,
+            "cost": 0.0016405
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The comparison claim is mathematically reversed: desktop average recorded revenue is $120 ÷ 12 = $10 per purchase event, while mobile is $60 ÷ 3 = $20 per event. Thus mobile, not desktop, has the higher average.",
+                "correction": "Change the conclusion to: desktop averaged $10 per purchase event and mobile averaged $20, so mobile's average was $10 higher (2× desktop's)."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "Desktop recorded 12 purchase events and $120 revenue; mobile recorded 3 events and $60 revenue. Mobile's average revenue per purchase event was $20 versus desktop's $10.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": [
+              "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+              "00000000-0000-4000-8000-000000000001"
+            ],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 2740,
+          "usage": {
+            "inputTokens": 6063,
+            "outputTokens": 146,
+            "cost": 0.00168485
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        },
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "00000000-0000-4000-8000-000000000001",
+          "sql": "SELECT device.category AS device, SUM(ecommerce.purchase_revenue_in_usd) AS revenue FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Recorded USD purchase-event revenue by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "revenue",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "revenue": 120
+            },
+            {
+              "device": "mobile",
+              "revenue": 60
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "follow-up-filter",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 1,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "The requested filtered purchase-event count was 15.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "follow-up-filter",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 5591,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 11276,
+        "outputTokens": 279,
+        "cost": 0.0031416,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11276,
+          "outputTokens": 279,
+          "cost": 0.0031416
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "For mobile in November 2020, the recorded purchase-event count was 3.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "The requested filtered purchase-event count was 15.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 2673,
+          "usage": {
+            "inputTokens": 5473,
+            "outputTokens": 168,
+            "cost": 0.00156375
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The saved SQL does not preserve the requested mobile device filter: it groups all purchase events by device and returns desktop 12 and mobile 3, while the narrative claims the filtered mobile count is 15. The resultRef therefore supports 3 mobile purchase events, not 15.",
+                "correction": "Add a predicate such as `device.category = 'mobile'` (or use the mobile row from the existing breakdown) and report the supported count of 3, unless a separately saved result supports another value."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "For mobile in November 2020, the recorded purchase-event count was 3.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 2918,
+          "usage": {
+            "inputTokens": 5803,
+            "outputTokens": 111,
+            "cost": 0.00157785
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "follow-up-date",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 1,
+      "usage": {
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "January 2021 recorded 12 desktop purchase events and 3 mobile purchase events.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "follow-up-date",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 6481,
+      "usage": {
+        "modelCalls": 4,
+        "inputTokens": 11342,
+        "outputTokens": 308,
+        "cost": 0.0031929000000000003,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 11342,
+          "outputTokens": 308,
+          "cost": 0.0031929000000000003
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "Only November evidence is available in this saved result; it does not establish the requested January 2021 purchase-event counts.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "January 2021 recorded 12 desktop purchase events and 3 mobile purchase events.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 4052,
+          "usage": {
+            "inputTokens": 5467,
+            "outputTokens": 249,
+            "cost": 0.00165945
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The narrative reports January 2021 counts, but the saved result and SQL filter `_TABLE_SUFFIX BETWEEN '20201101' AND '20201130'` cover November 2020. Thus the cited 12 desktop and 3 mobile purchase events do not support the January claim.",
+                "correction": "Run the purchase-event-by-device query for `_TABLE_SUFFIX BETWEEN '20210101' AND '20210131'`, save the January result, and report its device counts. Alternatively, relabel the answer as November 2020."
+              },
+              {
+                "problem": "The caveat also says the data is for November 2020, reinforcing that the answer did not apply the user's latest date change to January 2021.",
+                "correction": "Update the caveat to January 2021 after obtaining January evidence, while retaining that these are purchase events rather than reconstructed orders."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "Only November evidence is available in this saved result; it does not establish the requested January 2021 purchase-event counts.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 2428,
+          "usage": {
+            "inputTokens": 5875,
+            "outputTokens": 59,
+            "cost": 0.00153345
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "device": "mobile",
+              "purchases": 3
+            }
+          ],
+          "complete": true,
+          "totalRows": "2"
+        }
+      ]
+    },
+    {
+      "name": "ambiguous-line-series",
+      "mode": "baseline",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 1,
+      "usage": {
+        "modelCalls": 2,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cost": 0,
+        "analyst": {
+          "modelCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": false,
+      "falseRejection": false,
+      "repairAttempts": 0,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "For the week of November 2, desktop recorded 12 purchase events and mobile 3. For November 9, desktop recorded 10 and mobile 5.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": ["32ea4ec6-1482-400c-b4da-c4f27b69d2e2"]
+        }
+      },
+      "reviews": [],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT DATE_TRUNC(PARSE_DATE('%Y%m%d', event_date), WEEK(MONDAY)) AS week, device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY week, device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "week",
+              "type": "date"
+            },
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "week": "2020-11-02",
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "week": "2020-11-02",
+              "device": "mobile",
+              "purchases": 3
+            },
+            {
+              "week": "2020-11-09",
+              "device": "desktop",
+              "purchases": 10
+            },
+            {
+              "week": "2020-11-09",
+              "device": "mobile",
+              "purchases": 5
+            }
+          ],
+          "complete": true,
+          "totalRows": "4"
+        }
+      ]
+    },
+    {
+      "name": "ambiguous-line-series",
+      "mode": "reviewed",
+      "expectedInitialRejection": true,
+      "outcome": {
+        "status": "completed",
+        "error": null
+      },
+      "latencyMs": 7501,
+      "usage": {
+        "modelCalls": 5,
+        "inputTokens": 12038,
+        "outputTokens": 505,
+        "cost": 0.0036033000000000003,
+        "analyst": {
+          "modelCalls": 3,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cost": 0
+        },
+        "reviewer": {
+          "modelCalls": 2,
+          "inputTokens": 12038,
+          "outputTokens": 505,
+          "cost": 0.0036033000000000003
+        }
+      },
+      "extraQueries": 0,
+      "errorCaught": true,
+      "falseRejection": false,
+      "repairAttempts": 1,
+      "final": {
+        "kind": "analysis",
+        "analysis": {
+          "narrative": "For the week of November 2, desktop recorded 12 purchase events and mobile 3. For November 9, desktop recorded 10 and mobile 5. These are only the returned nonzero week/device groups; zero-purchase combinations are omitted. Weeks start Monday, so November 1 belongs to the week starting October 26, for which no purchase group was returned.",
+          "caveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+          "chartIds": []
+        }
+      },
+      "reviews": [
+        {
+          "candidate": {
+            "narrative": "For the week of November 2, desktop recorded 12 purchase events and mobile 3. For November 9, desktop recorded 10 and mobile 5.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": ["3e386766-17ef-4f3f-9951-b51cb8af97e0"]
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 1,
+          "latencyMs": 3718,
+          "usage": {
+            "inputTokens": 5891,
+            "outputTokens": 277,
+            "cost": 0.00179905
+          },
+          "verdict": {
+            "approved": false,
+            "issues": [
+              {
+                "problem": "The published line chart cannot faithfully show the requested week-by-device breakdown: the authoritative line schema provides only x and y, with no device series field, so a line using week and purchases loses the device dimension.",
+                "correction": "Replace the chart with a supported table containing week, device, and purchases, or omit the chart. Do not imply that the existing line chart displays separate device series."
+              }
+            ]
+          },
+          "error": null
+        },
+        {
+          "candidate": {
+            "narrative": "For the week of November 2, desktop recorded 12 purchase events and mobile 3. For November 9, desktop recorded 10 and mobile 5. These are only the returned nonzero week/device groups; zero-purchase combinations are omitted. Weeks start Monday, so November 1 belongs to the week starting October 26, for which no purchase group was returned.",
+            "caveats": [
+              "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+            ],
+            "resultRefs": ["46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53"],
+            "chartIds": []
+          },
+          "model": "openai/gpt-5.6-luna",
+          "attempt": 2,
+          "latencyMs": 3782,
+          "usage": {
+            "inputTokens": 6147,
+            "outputTokens": 228,
+            "cost": 0.00180425
+          },
+          "verdict": {
+            "approved": true,
+            "issues": []
+          },
+          "error": null
+        }
+      ],
+      "results": [
+        {
+          "origin": "adhoc",
+          "catalog": null,
+          "parameters": {},
+          "justification": "Controlled evaluation fixture for a purchase-event breakdown.",
+          "requiredCaveats": [
+            "Obfuscated sample data for November 2020; purchase events are not reconstructed orders."
+          ],
+          "dataQuality": {},
+          "scope": {
+            "kind": "full",
+            "topN": null
+          },
+          "ref": "46cbd3b6-c1f1-4364-b3b0-a9255ffa4e53",
+          "sql": "SELECT DATE_TRUNC(PARSE_DATE('%Y%m%d', event_date), WEEK(MONDAY)) AS week, device.category AS device, COUNT(*) AS purchases FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130' AND event_name = 'purchase' GROUP BY week, device",
+          "purpose": "Purchases by device",
+          "jobId": "fixture-job",
+          "bytesProcessed": "10",
+          "bytesBilled": "10",
+          "columns": [
+            {
+              "name": "week",
+              "type": "date"
+            },
+            {
+              "name": "device",
+              "type": "string"
+            },
+            {
+              "name": "purchases",
+              "type": "number"
+            }
+          ],
+          "rows": [
+            {
+              "week": "2020-11-02",
+              "device": "desktop",
+              "purchases": 12
+            },
+            {
+              "week": "2020-11-02",
+              "device": "mobile",
+              "purchases": 3
+            },
+            {
+              "week": "2020-11-09",
+              "device": "desktop",
+              "purchases": 10
+            },
+            {
+              "week": "2020-11-09",
+              "device": "mobile",
+              "purchases": 5
+            }
+          ],
+          "complete": true,
+          "totalRows": "4"
+        }
+      ]
+    }
+  ]
+}

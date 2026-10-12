@@ -9,9 +9,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 const narrative = "Desktop has 12 purchase events; mobile has 3.";
-test("chat streams charts and draft text, replaces the draft, reloads, and follows up", async ({
-  page,
-}) => {
+test("chat publishes approved charts and answer, reloads, and follows up", async ({ page }) => {
   let turnRequests = 0;
   let resultRequests = 0;
   page.on("request", (entry) => {
@@ -27,7 +25,6 @@ test("chat streams charts and draft text, replaces the draft, reloads, and follo
   await composer.fill("Compare purchases by device");
   await composer.press("Enter");
   await expect(page.getByTestId("chart-bar")).toBeVisible();
-  await expect(page.getByTestId("narrative-draft")).toContainText("Desktop");
   await expect(page.getByText(narrative, { exact: true })).toBeVisible();
   await expect(page.getByTestId("narrative-draft")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
@@ -48,7 +45,7 @@ test("chat streams charts and draft text, replaces the draft, reloads, and follo
   await page.getByRole("button", { name: "Compare purchases by device", exact: true }).click();
   await expect(page.getByTestId("chart-bar")).toHaveCount(2);
 });
-test("session switching permits a second response and Stop retains charts independently", async ({
+test("session switching permits a second response and Stop keeps candidates private", async ({
   page,
 }) => {
   let turns = 0;
@@ -60,7 +57,8 @@ test("session switching permits a second response and Stop retains charts indepe
   await page.goto("/");
   await page.getByLabel("Ask an analytics question").fill("Hold this analysis");
   await page.getByRole("button", { name: "Send question" }).click();
-  await expect(page.getByTestId("narrative-draft")).toContainText("Desktop");
+  await expect(page.getByText("Checking the analysis", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("chart-bar")).toHaveCount(0);
   const sessionUrl = page.url();
   await page.getByRole("button", { name: "New chat", exact: true }).click();
   await page.getByLabel("Ask an analytics question").fill("Another question");
@@ -68,21 +66,22 @@ test("session switching permits a second response and Stop retains charts indepe
   await page.getByRole("button", { name: "Send question" }).click();
   await expect(page.getByText(narrative, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Hold this analysis", exact: true }).click();
-  await expect(page.getByTestId("narrative-draft")).toBeVisible();
+  await expect(page.getByText("Checking the analysis", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Stop", exact: true }).click();
   await expect(page.getByTestId("narrative-draft")).toHaveCount(0);
-  await expect(page.getByTestId("chart-bar")).toBeVisible();
+  await expect(page.getByTestId("chart-bar")).toHaveCount(0);
   await expect(page.getByText(/Analysis interrupted; saved artifacts/)).toBeVisible();
   await page.reload();
-  await expect(page.getByTestId("chart-bar")).toBeVisible();
+  await expect(page.getByTestId("chart-bar")).toHaveCount(0);
   expect(page.url()).toBe(sessionUrl);
   expect(turns).toBe(2);
 });
-test("a rejected draft is removed and a repaired presentation completes", async ({ page }) => {
+test("a rejected candidate stays private and a repaired presentation completes", async ({
+  page,
+}) => {
   await page.goto("/");
   await page.getByLabel("Ask an analytics question").fill("Repair this analysis");
   await page.getByRole("button", { name: "Send question" }).click();
-  await expect(page.getByTestId("narrative-draft")).toContainText("Rejected draft");
   await expect(page.getByText(narrative, { exact: true })).toBeVisible();
   await expect(page.getByTestId("narrative-draft")).toHaveCount(0);
   await expect(page.getByText(/Rejected draft/)).toHaveCount(0);
@@ -90,13 +89,15 @@ test("a rejected draft is removed and a repaired presentation completes", async 
   await expect(page.getByText(narrative, { exact: true })).toBeVisible();
   await expect(page.getByText(/Rejected draft/)).toHaveCount(0);
 });
-test("failed generation clears draft text and preserves published charts", async ({ page }) => {
+test("failed generation keeps narrative and candidate charts private", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Ask an analytics question").fill("Fail this analysis");
   await page.getByRole("button", { name: "Send question" }).click();
-  await expect(page.getByTestId("narrative-draft")).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: /Analysis could not complete/ }),
+  ).toBeVisible();
   await expect(page.getByTestId("narrative-draft")).toHaveCount(0);
-  await expect(page.getByTestId("chart-bar")).toBeVisible();
+  await expect(page.getByTestId("chart-bar")).toHaveCount(0);
   await expect(page.getByText(narrative, { exact: true })).toHaveCount(0);
 });
 for (const [prompt, type] of [
@@ -244,4 +245,31 @@ test("shows activity before query execution and formats persisted revenue charts
   await chart.getByText("View chart data", { exact: true }).click();
   await expect(chart.getByRole("cell", { name: "$1,234.56" })).toBeVisible();
   await expect(page.getByTestId("agent-activity")).toHaveCount(0);
+});
+
+test("holds answer and charts while review is pending, then publishes them", async ({ page }) => {
+  await page.getByLabel("Ask an analytics question").fill("Review this analysis");
+  await page.getByRole("button", { name: "Send question" }).click();
+  await expect(page.getByText("Checking the analysis", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("narrative-draft")).toHaveCount(0);
+  await expect(page.getByTestId("chart-bar")).toHaveCount(0);
+  await expect(page.getByText(narrative, { exact: true })).toHaveCount(0);
+  await expect(page.getByText(narrative, { exact: true })).toBeVisible();
+  await expect(page.getByTestId("chart-bar")).toHaveCount(1);
+});
+
+test("a second review rejection publishes no answer or charts after reload", async ({ page }) => {
+  await page.getByLabel("Ask an analytics question").fill("Reject this analysis");
+  await page.getByRole("button", { name: "Send question" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: /did not pass verification after repair/ }),
+  ).toBeVisible();
+  await expect(page.getByText(narrative, { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("chart-bar")).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole("status").filter({ hasText: /did not pass verification after repair/ }),
+  ).toBeVisible();
+  await expect(page.getByText(narrative, { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("chart-bar")).toHaveCount(0);
 });

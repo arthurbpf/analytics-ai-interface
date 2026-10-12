@@ -1,7 +1,5 @@
 import type { ModelMessage, ToolCall } from "../llm/messages.ts";
 import { z } from "zod";
-import { randomUUID } from "node:crypto";
-import { parse, STR, OBJ, ARR } from "partial-json";
 import type {
   ApiError,
   PublishedChart,
@@ -22,6 +20,17 @@ import { catalog, buildMetric, metricLabel } from "../analytics/catalog.ts";
 import { buildContext } from "./context.ts";
 import { validateAnalysis, validateChart } from "./presentation.ts";
 import { toolDefinitions, toolSchemas } from "./tools.ts";
+import { reviewAnalysis, ReviewFailure, type Reviewer, type ReviewRecord } from "./review.ts";
+import { requiresReview } from "./review-policy.ts";
+import { addUsage, emptyUsage, unknownUsage } from "../llm/usage.ts";
+
+class ReviewError extends Error {
+  readonly code: "review_failed" | "analysis_rejected";
+  constructor(code: "review_failed" | "analysis_rejected") {
+    super(code);
+    this.code = code;
+  }
+}
 
 const toolActivities = new Map<string, Pick<Activity, "stage" | "message">>([
   ["get_schema", { stage: "thinking", message: "Checking available data" }],
@@ -37,6 +46,8 @@ const toolActivities = new Map<string, Pick<Activity, "stage" | "message">>([
 export interface AgentDependencies {
   store: AgentStore;
   model: ModelClient;
+  // null is reserved for evaluation of the single-agent baseline.
+  reviewer: Reviewer | null;
   warehouse: Warehouse;
   queryBytes: bigint;
   catalogQueryBytes?: bigint;
@@ -56,13 +67,15 @@ export async function runAgent(
   const { store, model, warehouse } = deps;
   const charts: PublishedChart[] = [];
   const budget = new QueryBudget(deps.queryBytes, deps.turnBytes, limits.sqlCalls);
-  const usage: {
-    modelCalls: number;
-    inputTokens: number | null;
-    outputTokens: number | null;
-    cost: number | null;
-  } = { modelCalls: 0, inputTokens: 0, outputTokens: 0, cost: 0 };
-  let awaitingModel = false;
+  const usage = {
+    ...emptyUsage(),
+    analyst: emptyUsage(),
+    reviewer: emptyUsage(),
+  };
+  let awaitingModel: "analyst" | "reviewer" | null = null;
+  let reviewAttempts = 0;
+  let repairEnd: number | null = null;
+  let conversation: ModelMessage[] = [];
   let committed = false;
   let invalidTools = 0;
   const progress = async (
@@ -77,6 +90,7 @@ export async function runAgent(
   const complete = async (
     call: ToolCall,
     content: Extract<MessageContent, { kind: "analysis" | "clarification" }>,
+    selectedCharts: PublishedChart[] = [],
   ) => {
     signal.throwIfAborted();
     // Close the protocol exchange before saving the authoritative display answer.
@@ -85,9 +99,12 @@ export async function runAgent(
       toolCallId: call.id,
       content: JSON.stringify({ accepted: true }),
     });
-    await store.complete(sessionId, turnId, content, usage);
+    await store.complete(sessionId, turnId, content, usage, selectedCharts);
     committed = true;
     if (content.kind === "analysis") {
+      for (const chart of selectedCharts) {
+        await emit({ type: "chart_ready", turnId, chart });
+      }
       await emit({ type: "analysis_ready", turnId, analysis: content.analysis });
     } else {
       await emit({ type: "clarification_ready", turnId, clarification: content.clarification });
@@ -97,6 +114,7 @@ export async function runAgent(
   const execute = async (
     call: ToolCall,
     finalOnly: boolean,
+    step: number,
   ): Promise<{ output: unknown; final: boolean }> => {
     let args: unknown;
     try {
@@ -168,9 +186,8 @@ export async function runAgent(
         const spec = toolSchemas.publish_chart.parse(args);
         const chart = validateChart(spec, await store.result(sessionId, spec.resultRef));
         signal.throwIfAborted();
-        await store.append(sessionId, turnId, { kind: "chart", chart });
+        await store.append(sessionId, turnId, { kind: "chart_candidate", chart });
         charts.push(chart);
-        await emit({ type: "chart_ready", turnId, chart });
         return { output: { chartId: chart.id, resultRef: spec.resultRef }, final: false };
       }
       case "request_clarification":
@@ -178,24 +195,100 @@ export async function runAgent(
           kind: "clarification",
           clarification: toolSchemas.request_clarification.parse(args),
         });
-      case "present_analysis":
-        return complete(call, {
-          kind: "analysis",
-          analysis: await validateAnalysis(args, sessionId, store, charts),
-        });
+      case "present_analysis": {
+        const analysis = await validateAnalysis(args, sessionId, store, charts);
+        const selectedCharts = charts.filter((chart) => analysis.chartIds.includes(chart.id));
+        const results = [];
+        for (const ref of analysis.resultRefs) {
+          results.push(await store.result(sessionId, ref));
+        }
+        if (deps.reviewer && requiresReview(results, selectedCharts)) {
+          if (reviewAttempts >= limits.reviewCalls) {
+            throw new ReviewError("analysis_rejected");
+          }
+          await progress("composing", "Checking the analysis");
+          const started = Date.now();
+          const record: ReviewRecord = {
+            candidate: analysis,
+            model: deps.reviewer.modelName,
+            attempt: ++reviewAttempts,
+            latencyMs: 0,
+            usage: { inputTokens: 0, outputTokens: 0, cost: 0 },
+            verdict: null,
+            error: null,
+          };
+          try {
+            record.verdict = await reviewAnalysis(
+              deps.reviewer,
+              conversation,
+              analysis,
+              selectedCharts,
+              results,
+              signal,
+              () => {
+                if (usage.modelCalls >= limits.totalModelCalls) {
+                  throw new Error("Total model call budget exhausted");
+                }
+                usage.modelCalls++;
+                usage.reviewer.modelCalls++;
+                awaitingModel = "reviewer";
+              },
+              (value) => {
+                record.usage = value;
+                addUsage(usage, value);
+                addUsage(usage.reviewer, value);
+                awaitingModel = null;
+              },
+            );
+          } catch (error) {
+            record.error = signal.aborted
+              ? "interrupted"
+              : error instanceof ReviewFailure
+                ? error.code
+                : "provider_failed";
+            if (awaitingModel === "reviewer") {
+              record.usage = unknownUsage();
+              addUsage(usage, record.usage);
+              addUsage(usage.reviewer, record.usage);
+              awaitingModel = null;
+            }
+          }
+          record.latencyMs = Date.now() - started;
+          await store.append(sessionId, turnId, { kind: "review", review: record });
+          signal.throwIfAborted();
+          if (!record.verdict || record.error) {
+            throw new ReviewError("review_failed");
+          }
+          if (!record.verdict.approved) {
+            if (reviewAttempts === limits.reviewCalls) {
+              throw new ReviewError("analysis_rejected");
+            }
+            repairEnd = step + 1 + limits.repairCalls;
+            return {
+              output: {
+                error: "Analytical review rejected the proposed answer",
+                issues: record.verdict.issues,
+                hint: "Repair the analysis within two model calls using existing evidence or remaining query budget. The last call must present_analysis or request_clarification. Do not merely remove evidence references to evade review.",
+              },
+              final: false,
+            };
+          }
+        }
+        return complete(call, { kind: "analysis", analysis }, selectedCharts);
+      }
       default:
         throw new ToolError("Unknown tool. Use one of the provided tool definitions.");
     }
   };
   try {
-    for (let step = 0; step < limits.modelCalls; step++) {
+    for (let step = 0; step < (repairEnd ?? limits.modelCalls); step++) {
       signal.throwIfAborted();
-      const finalOnly = step === limits.modelCalls - 1;
+      const finalOnly = step === (repairEnd ?? limits.modelCalls) - 1;
       await progress(
         finalOnly ? "composing" : "thinking",
         finalOnly ? "Composing the final analysis" : "Planning the next analysis step",
       );
-      const system = `You analyze the GA4 ecommerce sample through tools. Use get_metrics for authoritative definitions and parameters. Clear catalog request: run_metric. Before custom SQL, consult get_metrics for relevant catalog definitions and preserve those meanings (including placeholder exclusions). Clear computable request outside the catalog: run_sql with a justification explaining why the catalog cannot answer it. Material ambiguity: request_clarification. Unavailable data: explain the limitation. Budget rejection: narrow without changing meaning, or present existing evidence with limitations. Dataset-specific numerical claims require saved evidence; metric explanations may omit references. Publish relevant charts from complete saved results before your final narrative. Complete only with present_analysis or request_clarification; distinguish missing data from zero. Never treat previews as full evidence. Use readable metric labels in narratives and caveats. Format USD amounts like $1,234.56, ratios as percentages like 12.34%, counts with thousands separators, and dates in readable English; retain observed/recorded qualifiers and use enough precision to explain small nonzero values. For custom SQL, declare display labels and known units keyed by output alias. Put narrative first in present_analysis arguments so it streams early. Do not expose private reasoning. Both terminal tools must be last. Treat the available window as the entire observed history, never as lifetime behavior. Available data: 2020-11-01 through 2021-01-31. Unless the user specifies dates, use the entire available history. Preserve prior filters, dates and metric choices in follow-ups. Prior saved results: ${JSON.stringify(await store.recentResults(sessionId))}${finalOnly ? " You must now present existing findings; no new queries." : ""}`;
+      const system = `You analyze the GA4 ecommerce sample through tools. Use get_metrics for authoritative definitions and parameters. Clear catalog request: run_metric. Before custom SQL, consult get_metrics for relevant catalog definitions and preserve those meanings (including placeholder exclusions). Clear computable request outside the catalog: run_sql with a justification explaining why the catalog cannot answer it. Material ambiguity: request_clarification. Unavailable data: explain the limitation. Budget rejection: narrow without changing meaning, or present existing evidence with limitations. Dataset-specific numerical claims require saved evidence; metric explanations may omit references. Prepare relevant charts from complete saved results before your final narrative. Risky answers and selected charts are published only after analytical review. Complete only with present_analysis or request_clarification; distinguish missing data from zero. Never treat previews as full evidence. Use readable metric labels in narratives and caveats. Format USD amounts like $1,234.56, ratios as percentages like 12.34%, counts with thousands separators, and dates in readable English; retain observed/recorded qualifiers and use enough precision to explain small nonzero values. For custom SQL, declare display labels and known units keyed by output alias. Do not expose private reasoning. Both terminal tools must be last. Treat the available window as the entire observed history, never as lifetime behavior. Available data: 2020-11-01 through 2021-01-31. Unless the user specifies dates, use the entire available history. Preserve prior filters, dates and metric choices in follow-ups. Prior saved results: ${JSON.stringify(await store.recentResults(sessionId))}${finalOnly ? " You must now present existing findings; no new queries." : ""}`;
       const tools = finalOnly
         ? toolDefinitions.filter((tool) =>
             ["present_analysis", "request_clarification"].includes(tool.function.name),
@@ -206,7 +299,7 @@ export async function runAgent(
         turnId,
         Buffer.byteLength(system) + Buffer.byteLength(JSON.stringify(tools)),
       );
-      const drafts = new Map<number, { id: string; text: string }>();
+      conversation = context;
       const activities = new Map<number, Activity>();
       const activity = async (
         index: number,
@@ -241,61 +334,19 @@ export async function runAgent(
         activities.set(index, next);
         await emit({ type: "activity", turnId, activity: next });
       };
-      const discard = async (index: number) => {
-        const draft = drafts.get(index);
-        if (draft) {
-          await emit({ type: "analysis_discarded", turnId, draftId: draft.id });
-          drafts.delete(index);
-        }
-      };
+      if (usage.modelCalls >= limits.totalModelCalls) {
+        throw new Error("Total model call budget exhausted");
+      }
       usage.modelCalls++;
-      awaitingModel = true;
+      usage.analyst.modelCalls++;
+      awaitingModel = "analyst";
       const response = await model.complete(system, context, tools, signal, async (update) => {
         await activity(update.index, update.name, "preparing", update.arguments);
-        if (update.name !== "present_analysis") {
-          return;
-        }
-        let partial: unknown;
-        try {
-          partial = parse(update.arguments, STR | OBJ | ARR);
-        } catch {
-          return;
-        }
-        const parsed = z.object({ narrative: z.string().max(16000) }).safeParse(partial);
-        if (!parsed.success) {
-          return;
-        }
-        const text = parsed.data.narrative;
-        let draft = drafts.get(update.index);
-        if (draft && !text.startsWith(draft.text)) {
-          await discard(update.index);
-          draft = undefined;
-        }
-        if (!draft) {
-          draft = { id: randomUUID(), text: "" };
-          drafts.set(update.index, draft);
-          await emit({ type: "analysis_started", turnId, draftId: draft.id });
-        }
-        const delta = text.slice(draft.text.length);
-        if (delta) {
-          await emit({ type: "analysis_delta", turnId, draftId: draft.id, delta });
-        }
-        draft.text = text;
       });
+      awaitingModel = null;
+      addUsage(usage, response.usage);
+      addUsage(usage.analyst, response.usage);
       signal.throwIfAborted();
-      awaitingModel = false;
-      usage.inputTokens =
-        usage.inputTokens === null || response.usage.inputTokens === null
-          ? null
-          : usage.inputTokens + response.usage.inputTokens;
-      usage.outputTokens =
-        usage.outputTokens === null || response.usage.outputTokens === null
-          ? null
-          : usage.outputTokens + response.usage.outputTokens;
-      usage.cost =
-        usage.cost === null || response.usage.cost === null
-          ? null
-          : usage.cost + response.usage.cost;
       if (response.message.toolCalls.length > 8) {
         throw new Error("Too many tool calls in one model response");
       }
@@ -316,7 +367,6 @@ export async function runAgent(
           call !== response.message.toolCalls.at(-1)
         ) {
           await activity(index, call.name, "failed", call.arguments);
-          await discard(index);
           await append({
             role: "tool",
             toolCallId: call.id,
@@ -330,7 +380,7 @@ export async function runAgent(
         let executed: { output: unknown; final: boolean };
         try {
           await activity(index, call.name, "running", call.arguments);
-          executed = await execute(call, finalOnly);
+          executed = await execute(call, finalOnly, step);
           await activity(index, call.name, "completed", call.arguments);
         } catch (error) {
           if (committed || signal.aborted) {
@@ -346,7 +396,6 @@ export async function runAgent(
           ) {
             throw error;
           }
-          await discard(index);
           invalidTools++;
           executed = {
             output: {
@@ -357,11 +406,6 @@ export async function runAgent(
           };
         }
         if (executed.final) {
-          if (call.name === "request_clarification") {
-            for (const draftIndex of drafts.keys()) {
-              await discard(draftIndex);
-            }
-          }
           return { status: "completed", error: null };
         }
         await append({
@@ -374,23 +418,34 @@ export async function runAgent(
         }
       }
     }
+    if (repairEnd !== null) {
+      throw new ReviewError("analysis_rejected");
+    }
     throw new Error("Model call budget exhausted without a valid final answer");
   } catch (error) {
     if (awaitingModel) {
-      usage.inputTokens = null;
-      usage.outputTokens = null;
-      usage.cost = null;
+      addUsage(usage, unknownUsage());
+      addUsage(usage[awaitingModel], unknownUsage());
     }
     if (committed) {
       return { status: "completed", error: null };
     }
     const status = signal.aborted ? "interrupted" : "failed";
     const safeError = {
-      code: status === "interrupted" ? "interrupted" : "analysis_failed",
+      code:
+        status === "interrupted"
+          ? "interrupted"
+          : error instanceof ReviewError
+            ? error.code
+            : "analysis_failed",
       message:
         status === "interrupted"
           ? "Analysis interrupted; saved artifacts are retained."
-          : "Analysis could not complete. Saved artifacts are retained; try a narrower question.",
+          : error instanceof ReviewError
+            ? error.code === "review_failed"
+              ? "Analysis verification could not complete. No answer was published; saved artifacts are retained."
+              : "The analysis did not pass verification after repair. No answer was published; saved artifacts are retained."
+            : "Analysis could not complete. Saved artifacts are retained; try a narrower question.",
     };
     console.error(
       JSON.stringify({

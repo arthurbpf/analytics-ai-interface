@@ -13,11 +13,11 @@ Live checks are explicit, paid-service checks and do not run in the default suit
 | Results   | Complete bounded rows survive save/load unchanged; rows, columns, and byte overflow are marked incomplete; dates/nulls/numbers normalize without silently losing precision; chart rendering and retrieval do not rerun SQL.                                                                                                                                                                                                     |
 | Loop      | Query → chart → analysis completes; SQL/chart errors allow correction; presentation executes before completion; plain text is not completion; unknown/malformed tools fail safely; multiple calls execute sequentially; every work budget is enforced; vendor failures terminate honestly.                                                                                                                                      |
 | State     | Reload/restart preserves ordered display history and charts, while internal model/tool exchanges remain available only to the agent; follow-ups inherit definitions/filters and query afresh; omitted results remain retrievable; context preserves active tool pairs; concurrent turns conflict; duplicate request IDs never replay paid work; stale running turns become interrupted; failed persistence never emits success. |
-| HTTP/SSE  | Create/read sessions; bad requests fail before streaming; chart arrives while final answer is pending; browser parser handles fragmented UTF-8 frames; abort propagates to model and warehouse; failures emit terminal states; partial charts survive reload; completed answers stay completed after close; slow consumers respect backpressure.                                                                                |
+| HTTP/SSE  | Create/read sessions; bad requests fail before streaming; charts and answer publish only after review; browser parser handles fragmented UTF-8 frames; abort propagates to model and warehouse; failures emit terminal states; candidate charts remain private on interrupted reload; completed answers stay completed after close; slow consumers respect backpressure.                                                        |
 
 ## Catalog, clarification and live verification
 
-The current harness keeps one agent and eight tools. `run_metric` exposes 18
+The current harness keeps one analyst with eight tools and a bounded reviewer. `run_metric` exposes 18
 metrics, while guarded `run_sql` requires purpose/justification. Calendar dates,
 allowed dimensions/filters, steps and ranking columns are validated before query
 submission. Values are bound parameters; identifiers/operators are server-owned.
@@ -35,14 +35,14 @@ Charts retain scope/required limitations; presentation merges those limitations.
 
 Clarification shares the completion transaction and status `completed` with
 analysis. Tests check both terminal tools on the last model step, dispatch of
-unavailable work, terminal-last ordering, persistence before success, draft
-removal, retained results/charts, duplicate IDs, reload, and a normal follow-up
+unavailable work, terminal-last ordering, persistence before success, private drafts and candidate charts, retained results, duplicate IDs, reload, and a normal follow-up
 with clarification context. Browser tests exercise the production UI with scripted
 external services; they do not validate live analytics by themselves.
 
-On 2026-10-12, the current deterministic checks passed: 119 API unit tests,
-37 web unit tests, 22 real PostgreSQL integration tests and 15 Playwright browser
-tests. Workspace formatting, lint, typecheck and production builds passed. Vite
+On 2026-10-12, bounded-review checks passed: 145 API unit tests,
+51 web unit tests, 25 real PostgreSQL integration tests and 18 Playwright browser
+cases. The browser run initially collided with concurrent startup recovery; its
+one interrupted case passed when rerun alone. Workspace formatting, lint, typecheck and production builds passed. Vite
 reports the existing large frontend bundle warning; deployment remains unverified.
 
 Live verification commands (explicit paid/external checks):
@@ -104,7 +104,7 @@ every narrative claim and derivative calculation, independent real-data referenc
 for every catalog metric/dimension/filter combination, broader malformed export
 fixtures (including repeated parameter keys), and deployed streaming/backup/retention
 checks. Single-run prompt success is evidence for these cases, not a correctness
-guarantee. No delegation comparison, embeddings or vector indexes are implemented.
+guarantee. Investigation delegation, embeddings and vector indexes are not implemented.
 
 ## Identity, ownership, and titles
 
@@ -135,3 +135,63 @@ of $0.000414. Live Google login remains unverified because Google OAuth client
 credentials are not configured in the local environment. After configuring them,
 verify login, guest transfer, account reload, logout, and login from a second browser
 using the setup in the root README.
+
+## Bounded analytical review
+
+Review runs after deterministic validation and before publication for custom SQL,
+multiple results, charts, time series, filters, ranked results, multi-dimension
+results, and rate/comparison-style catalog metrics. It skips explanations without
+query evidence and simple one-result catalog aggregates with at most one dimension.
+Clarification bypasses it. The reviewer receives complete referenced evidence and
+returns exactly one typed verdict. Tests cover malformed/contradictory/multiple
+verdicts, provider failures, context overflow without previews, unknown interrupted
+usage, one repair cycle, query-capable repair sharing the SQL ledger, twelve total
+model calls, and terminal-only final repair dispatch. PostgreSQL checks retain
+private records across reopen and inject an answer-insert failure to verify that
+chart publication and completion roll back together. Browser checks withhold output
+during delayed review, keep rejected/interrupted candidates private on reload, and
+reject duplicate IDs without replay.
+
+Live evaluation artifacts separate end-to-end routing over BigQuery from controlled
+synthetic reviewer challenges. Neither reference validation nor reviewer approval
+establishes every numerical or causal claim; manual review and repeated/model-diverse
+runs remain necessary.
+
+Final live checks for `openai/gpt-5.6-luna` are in
+[live baseline](live-harness-evaluations-baseline.json),
+[live reviewed](live-harness-evaluations-reviewed.json), and
+[controlled review](live-review-evaluations.json). Both end-to-end runs completed
+nine cases. Their median turn latencies were 13.899 seconds without review and
+21.712 seconds with review; reported total LLM costs were $0.01417248 and
+$0.03205549, including $0.01768915 of reviewer usage. The final reviewed run needed
+no repair queries. These are single runs, not controlled latency/cost estimates;
+model trajectories vary. The multi-part coverage rubric accepts `event_counts`
+filtered to purchase events as equivalent to `purchases`; coverage annotations
+were reassessed from saved evidence without rerunning paid work.
+
+The controlled run uses synthetic complete evidence, scripted analyst output and
+repairs, and a live reviewer: 12 incorrect candidates were rejected, three correct
+initial candidates accepted, and all twelve scripted repairs accepted, with no
+false rejections in that run. Fifteen reviewed turns had a median latency of 6.318
+seconds, reported reviewer cost $0.0437594, and no warehouse execution. This
+establishes those reviewer judgments, not the analyst's ability to produce the
+scripted repairs or general production accuracy.
+
+Earlier live failures are retained in
+[initial review](live-harness-review-initial.json),
+[chart repair failure](live-harness-review-chart-failure.json), and
+[alias review failure](live-review-evaluations-alias-failure.json). They exposed an
+unnecessary inline-reference demand, unsupported line-chart series advice, and a
+false SQL-grain objection. The reviewer now receives the authoritative chart schema;
+shared SQL guidance records BigQuery's documented SELECT-alias precedence in GROUP BY.
+A live dry run accepted the fixture SQL and estimated 31,933,994 bytes. The alias
+failure artifact predates counting false rejections of correct repairs; its last
+rejection is a false rejection even though its original `falseRejection` flag is false.
+See [BigQuery GROUP BY](https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#group_by_clause).
+
+Manual review still found numerical rounding errors in the final live multi-part
+answer: the desktop revenue decline was 59.9263% (59.9% to one decimal), reported
+as 60.0%; the overall decline was 60.2454% (60.2%), reported as 60.3%. The reviewer
+approved them. The automated `correctness` field measures its stated routing and
+evidence rubric, not every numerical claim. Reviewer approval remains fallible,
+and broader numerical evaluation is still pending.

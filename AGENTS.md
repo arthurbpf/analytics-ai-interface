@@ -40,7 +40,8 @@ from remaining product and deployment work.
 - Baseline stack: TypeScript, Node/Express, React/Vite with plain CSS and no UI
   component library. The original brief's interpretation of React remains an
   open question. Visualization libraries are allowed.
-- Keep a single agent and a small tool set initially. No multi-agent orchestration.
+- Keep one analyst with eight tools and one bounded reviewer before publication.
+  No coordinator, specialist workers, or general multi-agent orchestration.
 
 # Agreed architecture decisions
 
@@ -52,7 +53,7 @@ from remaining product and deployment work.
   explicit metric definitions. Keep guarded ad-hoc `run_sql` for clear computable
   requests outside the catalog, with a required purpose and justification.
 - Material ambiguity completes the turn through `request_clarification`; the
-  answer starts a normal new turn. Keep one agent; delegation is deferred.
+  answer starts a normal new turn. Keep one analyst; investigation delegation is deferred.
 - The entire available history is November 1, 2020 through January 31, 2021.
   Observed sessions and customer frequency must not imply lifetime behavior.
 - The executor owns access checks and all execution limits. Prompt instructions
@@ -165,9 +166,15 @@ whose name ends in `_test`.
   prompts and published output; model/tool exchanges remain backend-only. Build
   that package before direct API commands. Source imports use `.ts`; the compiler
   rewrites them for emitted JavaScript.
-- Charts are persisted before `chart_ready`. Final presentation validates saved
-  results and published charts before committing completion. Incomplete results
-  cannot support final evidence.
+- Charts are persisted privately as candidates. Risky analyses pass deterministic
+  validation and a separate analytical review before the selected charts
+  and answer publish atomically. Drafts stay private; clarification bypasses review.
+  Rejection allows two analyst repair calls and one final review, using the same
+  warehouse budget. Eight initial analyst calls plus two repair and two review calls
+  share the two-minute deadline. Incomplete results cannot support final evidence.
+- Reviewer model defaults to the analyst model; `OPENROUTER_REVIEW_MODEL` overrides
+  it. Review records and usage breakdowns remain backend-only. Review failure or a
+  second rejection withholds output; saved artifacts survive without paid replay.
 - Disconnects preserve saved artifacts; duplicate client IDs do not replay work.
   Startup recovery assumes one API process. Revisit turn ownership/recovery
   before scaling to multiple instances.

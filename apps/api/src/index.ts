@@ -23,6 +23,10 @@ const { app, shutdown } = createApp({
       : undefined,
   titles: new OpenRouterTitles(config.apiKey, config.titleModel),
   model: new OpenRouter(config.apiKey, config.model),
+  reviewer: {
+    model: new OpenRouter(config.apiKey, config.reviewModel),
+    modelName: config.reviewModel,
+  },
   warehouse: new BigQueryWarehouse(config.projectId),
   queryBytes: config.queryBytes,
   catalogQueryBytes: config.catalogQueryBytes,
