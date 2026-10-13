@@ -20,7 +20,7 @@ if (serviceAccountJson && !process.env["GOOGLE_APPLICATION_CREDENTIALS"]) {
 }
 
 const config = readConfig(process.env);
-const store = new Store(config.databaseUrl);
+const store = new Store(config.databaseUrl, config.databaseSsl);
 await store.recover();
 const { app, shutdown } = createApp({
   store,

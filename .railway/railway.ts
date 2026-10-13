@@ -17,6 +17,7 @@ export default defineRailway(() => {
       GOOGLE_CLOUD_PROJECT: preserve(),
       GOOGLE_APPLICATION_CREDENTIALS_JSON: preserve(),
       // Optional. Add (and set) only when the feature is used.
+      //   DATABASE_SSL_CA: preserve(),    // PEM CA for verified database TLS
       //   GOOGLE_CLIENT_ID: preserve(),
       //   GOOGLE_CLIENT_SECRET: preserve(),
       //   OPENROUTER_REVIEW_MODEL: preserve(),

@@ -2,6 +2,7 @@ import { displayHistory, type AgentHistory, type StoredMessageContent } from "./
 import { and, asc, desc, eq, gt, isNull, sql, getTableColumns } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import type { ConnectionOptions } from "node:tls";
 import {
   historySchema,
   queryResultSchema,
@@ -45,9 +46,10 @@ export class Store {
    * Creates a store over a connection pool.
    *
    * @param url - PostgreSQL connection string.
+   * @param ssl - TLS options, including certificate verification and optional CA.
    */
-  constructor(url: string) {
-    this.pool = new Pool({ connectionString: url, max: 5 });
+  constructor(url: string, ssl?: ConnectionOptions) {
+    this.pool = new Pool({ connectionString: url, max: 5, ...(ssl ? { ssl } : {}) });
     this.db = drizzle({ client: this.pool, schema });
   }
 

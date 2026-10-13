@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { databaseConnection } from "./db/connection.ts";
 
 const positiveInteger = z.coerce.number().int().positive();
 export const limits = {
@@ -16,7 +17,6 @@ export const limits = {
   charts: 4,
 };
 const envSchema = z.object({
-  DATABASE_URL: z.string().min(1),
   OPENROUTER_API_KEY: z.string().min(1),
   OPENROUTER_MODEL: z.string().min(1),
   OPENROUTER_REVIEW_MODEL: z.string().min(1).optional(),
@@ -38,7 +38,8 @@ const envSchema = z.object({
  * Parses and validates runtime configuration from the process environment.
  *
  * Fails fast on missing credentials, inconsistent byte budgets, or production settings
- * that would run without HTTPS, so misconfiguration surfaces at startup.
+ * that would run without HTTPS or verified database TLS, so misconfiguration
+ * surfaces at startup.
  *
  * @param env - Process environment to read.
  * @returns Validated configuration with parsed byte budgets and derived values.
@@ -68,18 +69,13 @@ export function readConfig(env: NodeJS.ProcessEnv) {
   if (Boolean(value.GOOGLE_CLIENT_ID) !== Boolean(value.GOOGLE_CLIENT_SECRET)) {
     throw new Error("Configure both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET");
   }
-  let databaseUrl = value.DATABASE_URL;
-  if (value.NODE_ENV === "production" && !/[?&](sslmode|ssl)=/.test(databaseUrl)) {
-    databaseUrl += databaseUrl.includes("?") ? "&" : "?";
-    databaseUrl += "sslmode=no-verify";
-  }
   return {
     origin,
     secureCookies: value.NODE_ENV === "production",
     googleClientId: value.GOOGLE_CLIENT_ID,
     googleClientSecret: value.GOOGLE_CLIENT_SECRET,
     titleModel: value.OPENROUTER_TITLE_MODEL,
-    databaseUrl,
+    ...databaseConnection(env),
     apiKey: value.OPENROUTER_API_KEY,
     model: value.OPENROUTER_MODEL,
     reviewModel: value.OPENROUTER_REVIEW_MODEL ?? value.OPENROUTER_MODEL,

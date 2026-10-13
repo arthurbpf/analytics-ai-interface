@@ -1,8 +1,8 @@
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { z } from "zod";
+import { databaseConnection } from "./connection.ts";
 import { Store } from "./store.ts";
-const url = z.string().min(1).parse(process.env["DATABASE_URL"]);
-const store = new Store(url);
+const config = databaseConnection(process.env);
+const store = new Store(config.databaseUrl, config.databaseSsl);
 try {
   await migrate(store.db, { migrationsFolder: new URL("../../drizzle", import.meta.url).pathname });
 } finally {

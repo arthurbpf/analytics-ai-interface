@@ -108,12 +108,13 @@ Required:
 
 Optional:
 
-| Variable                                    | Notes                                                                                                                        |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `APP_ORIGIN`                                | Public HTTPS origin. Omitted, the app derives it from Railway's `RAILWAY_PUBLIC_DOMAIN`. Set explicitly for a custom domain. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Enable Google login.                                                                                                         |
-| `OPENROUTER_REVIEW_MODEL`                   | Overrides the reviewer; defaults to the analyst model.                                                                       |
-| `OPENROUTER_TITLE_MODEL`                    | Defaults to `anthropic/claude-haiku-4.5`.                                                                                    |
+| Variable                                    | Notes                                                                                                                               |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_ORIGIN`                                | Public HTTPS origin. Omitted, the app derives it from Railway's `RAILWAY_PUBLIC_DOMAIN`. Set explicitly for a custom domain.        |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Enable Google login.                                                                                                                |
+| `OPENROUTER_REVIEW_MODEL`                   | Overrides the reviewer; defaults to the analyst model.                                                                              |
+| `OPENROUTER_TITLE_MODEL`                    | Defaults to `anthropic/claude-haiku-4.5`.                                                                                           |
+| `DATABASE_SSL_CA`                           | PEM CA certificate when PostgreSQL uses a private or self-signed CA; required unless its certificate chains to a system-trusted CA. |
 
 `HOST=0.0.0.0` and `STATIC_DIR=/app/web/dist` are baked into the image by the
 Dockerfile; `PORT` is injected by Railway.
@@ -127,11 +128,27 @@ Dockerfile; `PORT` is injected by Railway.
 
 ## Notes
 
-- **TLS to Postgres**: in `NODE_ENV=production` the app appends
-  `sslmode=no-verify` to `DATABASE_URL` when it isn't already present. Railway's
-  Postgres uses a self-signed certificate, so the connection is encrypted but
-  the certificate chain is not verified (pg 8.23 treats `sslmode=require` as
-  full verification). A URL that already sets `sslmode`/`ssl` is left untouched.
+- **TLS to Postgres**: both the API and migrations require certificate and
+  hostname verification in `NODE_ENV=production`. Obtain the trusted CA
+  certificate from the database provider or administrator through an
+  authenticated channel. For a private/self-signed CA, set `DATABASE_SSL_CA` to
+  its PEM contents with actual newlines and add `DATABASE_SSL_CA: preserve()` to
+  the IaC service variables. The database must serve a certificate whose SAN
+  matches the hostname in `DATABASE_URL`; trusting a CA does not repair a
+  hostname mismatch. If the current database certificate does not match, configure
+  a matching server certificate before deploying this change. Never copy an
+  unverified certificate from a network connection into the trust configuration.
+  Remove URL TLS options; `sslmode=verify-full` is accepted and removed before
+  passing the explicit TLS options to pg, so it cannot overwrite the trusted CA.
+  Other `ssl*` URL options are rejected. Local development keeps its existing
+  connection behavior; setting `DATABASE_SSL_CA` locally also enables verified TLS.
+- **Private networking**: use the database's private hostname in the same Railway
+  project/environment and remove its public TCP proxy when external access is
+  unnecessary. Keep verified database TLS enabled. Check the actual database
+  hostname/certificate and connectivity before deployment; the application code
+  does not provision server certificates or remove network endpoints. See
+  [Railway private networking](https://docs.railway.com/networking/private-networking)
+  and [node-postgres TLS configuration](https://node-postgres.com/features/ssl).
 - **Migrations & PgBouncer**: the default Postgres is not pooled, so migrations
   run fine. If you later add the PgBouncer plugin, point migrations at
   `DATABASE_UNPOOLED_URL` instead (schema migrations need a dedicated session).
