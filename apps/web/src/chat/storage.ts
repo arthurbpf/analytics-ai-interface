@@ -20,13 +20,22 @@ export const emptyIndex: SessionIndex = {
   sidebarOpen: true,
 };
 /**
- * Reads persisted preferences, migrating away the legacy session cache.
+ * Removes the legacy session cache written by earlier versions.
+ */
+export function migrateLegacyPreference(): void {
+  try {
+    localStorage.removeItem("analytics.sessions.v1");
+  } catch {
+    return;
+  }
+}
+/**
+ * Reads persisted preferences.
  *
  * @returns The stored index and an optional warning when preferences could not be read.
  */
 export function readIndex(): { index: SessionIndex; warning: string | null } {
   try {
-    localStorage.removeItem("analytics.sessions.v1");
     const saved = localStorage.getItem(storageKey);
     if (!saved) {
       return { index: emptyIndex, warning: null };

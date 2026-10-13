@@ -1,5 +1,12 @@
 import { expect, it, vi } from "vitest";
-import { emptyIndex, readIndex, remember, storageKey, writeIndex } from "./storage.ts";
+import {
+  emptyIndex,
+  migrateLegacyPreference,
+  readIndex,
+  remember,
+  storageKey,
+  writeIndex,
+} from "./storage.ts";
 import { history, sessionId } from "./test-fixtures.ts";
 it("stores only identity-scoped selection and sidebar preferences", () => {
   const index = remember(
@@ -10,6 +17,11 @@ it("stores only identity-scoped selection and sidebar preferences", () => {
   expect(readIndex().index).toEqual({ ...index, sessions: [] });
   expect(localStorage.getItem(storageKey)).not.toContain("Revenue");
   expect(localStorage.getItem(storageKey)).not.toContain("sessions");
+});
+it("removes the legacy session cache during migration", () => {
+  localStorage.setItem("analytics.sessions.v1", JSON.stringify({ sessions: [] }));
+  migrateLegacyPreference();
+  expect(localStorage.getItem("analytics.sessions.v1")).toBeNull();
 });
 it("resets invalid versions and corrupt JSON", () => {
   localStorage.setItem(storageKey, '{"version":9}');

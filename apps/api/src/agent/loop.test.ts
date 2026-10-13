@@ -452,9 +452,6 @@ it("withholds presentation drafts through validation and publishes only the corr
   expect((await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).status).toBe(
     "completed",
   );
-  expect(events.filter((event) => event.type === "analysis_started")).toHaveLength(0);
-  expect(events.filter((event) => event.type === "analysis_delta")).toHaveLength(0);
-  expect(events.filter((event) => event.type === "analysis_discarded")).toHaveLength(0);
   expect(events.find((event) => event.type === "analysis_ready")).toMatchObject({
     analysis: { narrative: 'Repaired "answer"\n📊' },
   });
@@ -486,7 +483,6 @@ it("completes clarification once, retains results, discards drafts and enters fo
     history.messages.filter((message) => message.content.kind === "clarification"),
   ).toHaveLength(1);
   expect(events.filter((event) => event.type === "clarification_ready")).toHaveLength(1);
-  expect(events.some((event) => event.type === "analysis_discarded")).toBe(false);
   expect(events.some((event) => event.type === "analysis_ready")).toBe(false);
   expect(results.size).toBe(1);
   const { buildContext } = await import("./context.ts");

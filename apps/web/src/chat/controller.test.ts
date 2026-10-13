@@ -48,7 +48,7 @@ it("rejects invalid and duplicate submissions and creates sessions lazily", asyn
   expect(api.turn).toHaveBeenCalledTimes(1);
   expect(controller.getSnapshot().index.sessions[0]?.label).toBe("Revenue");
 });
-it("keeps two streams, drafts and completions isolated while navigating; Stop affects selection", async () => {
+it("keeps two streams isolated while navigating; Stop affects selection", async () => {
   const { controller, api, saved } = await setup();
   const otherId = crypto.randomUUID();
   const otherTurn = crypto.randomUUID();
@@ -81,20 +81,17 @@ it("keeps two streams, drafts and completions isolated while navigating; Stop af
       activity: { id: "0:0", stage: "querying", message: id, status: "running" },
     };
     yield { type: "chart_ready", turnId: turn, chart: chart() };
-    yield { type: "analysis_started", turnId: turn, draftId };
-    yield { type: "analysis_delta", turnId: turn, draftId, delta: id };
     signal.addEventListener("abort", () => gates[id]?.resolve(), { once: true });
     await gates[id]?.promise;
     signal.throwIfAborted();
-    yield { type: "analysis_discarded", turnId: turn, draftId };
     yield { type: "turn_finished", turnId: turn, status: "completed", error: null };
   });
   controller.send("First");
-  await vi.waitFor(() => expect(response(controller)?.draft?.text).toBe(sessionId));
+  await vi.waitFor(() => expect(response(controller)?.charts).toHaveLength(1));
   controller.select(null);
   controller.send("Second");
   await vi.waitFor(() =>
-    expect(controller.getSnapshot().responses[otherId]?.draft?.text).toBe(otherId),
+    expect(controller.getSnapshot().responses[otherId]?.charts).toHaveLength(1),
   );
   expect(api.turn).toHaveBeenCalledTimes(2);
   expect(response(controller)?.activities).toEqual([
@@ -117,13 +114,12 @@ it("disposes streams and cached history on identity change, ignoring late work",
   const gate = Promise.withResolvers<void>();
   api.turn = vi.fn(async function* (): AsyncGenerator<StreamEvent> {
     yield { type: "turn_started", turnId };
-    yield { type: "analysis_started", turnId, draftId };
-    yield { type: "analysis_delta", turnId, draftId, delta: "Private" };
+    yield { type: "chart_ready", turnId, chart: chart() };
     await gate.promise;
     yield { type: "turn_finished", turnId, status: "completed", error: null };
   });
   controller.send("Private question");
-  await vi.waitFor(() => expect(response(controller)?.draft?.text).toBe("Private"));
+  await vi.waitFor(() => expect(response(controller)?.charts).toHaveLength(1));
   const signal = response(controller)?.controller.signal;
   api.identity = vi.fn(async () => ({ ...guest, id: crypto.randomUUID() }));
   api.listSessions = vi.fn(async () => []);
@@ -183,7 +179,7 @@ it("reloads running histories without submitting paid work", async () => {
   controller.reload();
   expect(api.turn).not.toHaveBeenCalled();
 });
-it("retains published artifacts and clears drafts when history reload fails", async () => {
+it("retains published artifacts when history reload fails", async () => {
   const { controller, api } = await setup();
   api.history = vi.fn(async () => {
     throw new Error("History unavailable");
@@ -191,8 +187,6 @@ it("retains published artifacts and clears drafts when history reload fails", as
   api.turn = vi.fn(async function* (): AsyncGenerator<StreamEvent> {
     yield { type: "turn_started", turnId };
     yield { type: "chart_ready", turnId, chart: chart() };
-    yield { type: "analysis_started", turnId, draftId };
-    yield { type: "analysis_delta", turnId, draftId, delta: "Unvalidated" };
   });
   controller.send("Revenue");
   await vi.waitFor(() => completed(controller));
@@ -354,7 +348,7 @@ it("polls pending titles after stream closure without replaying a turn", async (
   expect(api.turn).toHaveBeenCalledTimes(1);
 });
 
-it("retains clarification once and disposes the draft even when reload fails", async () => {
+it("retains clarification once even when reload fails", async () => {
   const { controller, api } = await setup();
   const clarification = { context: "Specify a period.", questions: ["Which month?"] };
   api.history = vi.fn(async () => {
@@ -363,8 +357,6 @@ it("retains clarification once and disposes the draft even when reload fails", a
   api.turn = vi.fn(async function* (): AsyncGenerator<StreamEvent> {
     yield { type: "turn_started", turnId };
     yield { type: "chart_ready", turnId, chart: chart() };
-    yield { type: "analysis_started", turnId, draftId };
-    yield { type: "analysis_delta", turnId, draftId, delta: "Discard this" };
     yield { type: "clarification_ready", turnId, clarification };
     yield { type: "clarification_ready", turnId, clarification };
     yield { type: "turn_finished", turnId, status: "completed", error: null };

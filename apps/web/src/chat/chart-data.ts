@@ -31,13 +31,17 @@ export function plotData(
       duplicate: false,
     };
   }
-  const labels = [...new Set(data.rows.map((row) => JSON.stringify(row[spec.series] ?? null)))];
-  const series = labels.map((value, index) => ({
-    key: `s${index}`,
-    label: formatCell(
-      data.rows.find((row) => JSON.stringify(row[spec.series] ?? null) === value)?.[spec.series],
-    ),
-  }));
+  const seriesIndex = new Map<string, string>();
+  const series: { key: string; label: string }[] = [];
+  for (const row of data.rows) {
+    const value = row[spec.series] ?? null;
+    const identifier = JSON.stringify(value);
+    if (!seriesIndex.has(identifier)) {
+      const key = `s${series.length}`;
+      seriesIndex.set(identifier, key);
+      series.push({ key, label: formatCell(value) });
+    }
+  }
   const groups = new Map<string, Record<string, string | number | boolean | null>>();
   const seen = new Set<string>();
   for (const row of data.rows) {
@@ -55,12 +59,12 @@ export function plotData(
       for (const item of series) {
         entry[item.key] = null;
       }
+      groups.set(groupKey, entry);
     }
-    const key = series[labels.indexOf(JSON.stringify(label))]?.key;
+    const key = seriesIndex.get(JSON.stringify(label));
     if (key) {
       entry[key] = row[spec.y] ?? null;
     }
-    groups.set(groupKey, entry);
   }
   return { rows: [...groups.values()], series, duplicate: false };
 }

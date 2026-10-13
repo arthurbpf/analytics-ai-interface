@@ -16,9 +16,14 @@ const rootRoute = createRootRoute({ component: Outlet });
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  validateSearch: (search: Record<string, unknown>): { session?: string | undefined } => {
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { session?: string | undefined; login?: "failed" | undefined } => {
     const parsed = idSchema.safeParse(search["session"]);
-    return { session: parsed.success ? parsed.data : undefined };
+    return {
+      session: parsed.success ? parsed.data : undefined,
+      login: search["login"] === "failed" ? "failed" : undefined,
+    };
   },
   component: ChatPage,
 });

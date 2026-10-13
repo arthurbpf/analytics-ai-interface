@@ -7,21 +7,20 @@ specification or generated client to keep in sync.
 
 The single chat page uses shadcn/ui's Lyra preset with Base UI primitives.
 Session discovery comes from PostgreSQL. Only identity-scoped selection and sidebar
-preferences live in localStorage. Each chat owns its stream, draft, charts, and
+preferences live in localStorage. Each chat owns its stream, charts, and
 cancellation controller; streams continue during navigation and multiple chats can
 run together. Reload retrieves saved history and polls running turns without replaying
 paid work. Identity changes, expired authentication, and logout dispose private caches
 and streams. The welcome screen supports Google login and full guest mode.
 
-Narratives, drafts, and caveats render through react-markdown and remark-gfm, with
+Narratives and caveats render through react-markdown and remark-gfm, with
 HTML/images disabled and the default safe URL handling. Tables/code scroll on narrow
 screens. User prompts render literally.
 
-Narrative drafts and prepared charts remain private while the answer is generated
-and reviewed. Progress/activity events arrive immediately; approved narratives and
-selected charts publish together after persistence. Rejected, failed, or interrupted
-candidates never appear live or after reload. Legacy draft event handling remains
-compatible with client fixtures. Tool arguments and review records stay private.
+Prepared charts remain private while the answer is generated and reviewed.
+Progress/activity events arrive immediately; approved narratives and selected charts
+publish together after persistence. Rejected, failed, or interrupted candidates never
+appear live or after reload. Tool arguments and review records stay private.
 
 ## Automated coverage
 

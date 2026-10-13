@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { chatApi } from "./api.ts";
+import { ApiFailure, chatApi } from "./api.ts";
 import { history, sessionId, turnId } from "./test-fixtures.ts";
 it("uses the shared route and runtime-validates JSON history", async () => {
   const fetch = vi
@@ -38,6 +38,19 @@ async function consume() {
     expect(event).toBeDefined();
   }
 }
+it("preserves the HTTP status when a turn error body is not JSON", async () => {
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response("<html>Bad gateway</html>", { status: 502 }),
+  );
+  let caught: unknown;
+  try {
+    await consume();
+  } catch (error) {
+    caught = error;
+  }
+  expect(caught).toBeInstanceOf(ApiFailure);
+  expect(caught).toMatchObject({ status: 502, code: "request_failed" });
+});
 it("rejects missing streams, wrong content types, and malformed events", async () => {
   const fetch = vi
     .spyOn(globalThis, "fetch")

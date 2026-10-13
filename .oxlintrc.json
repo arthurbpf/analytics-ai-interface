@@ -210,23 +210,6 @@
       "rules": {
         "eslint/max-params": "off"
       }
-    },
-    {
-      "files": ["apps/web/src/chat/controller.ts"],
-      "rules": {
-        "eslint/complexity": "off",
-        "eslint/max-statements": "off",
-        "eslint/max-depth": "off",
-        "eslint/max-lines": "off"
-      }
-    },
-    {
-      "files": ["apps/web/src/chat/page.tsx"],
-      "rules": {
-        "eslint/complexity": "off",
-        "eslint/max-lines-per-function": "off",
-        "eslint/max-lines": "off"
-      }
     }
   ]
 }

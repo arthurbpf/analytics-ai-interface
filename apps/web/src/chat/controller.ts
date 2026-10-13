@@ -1,44 +1,27 @@
 import {
   historySchema,
   turnRequestSchema,
-  type Analysis,
-  type Clarification,
   type Identity,
-  type PublishedChart,
-  type SessionHistory,
   type StreamEvent,
-  type Activity,
 } from "@analytics/contracts";
 import { ApiFailure, chatApi, type ChatApi } from "./api.ts";
-import { emptyIndex, readIndex, remember, writeIndex, type SessionIndex } from "./storage.ts";
+import { hasPendingWork } from "./polling.ts";
+import {
+  applyEvent,
+  createResponse,
+  mergePublished,
+  type ActiveResponse,
+  type ChatState,
+} from "./response.ts";
+import {
+  emptyIndex,
+  migrateLegacyPreference,
+  readIndex,
+  remember,
+  writeIndex,
+  type SessionIndex,
+} from "./storage.ts";
 
-type ActiveResponse = {
-  sessionId: string | null;
-  label: string;
-  turnId: string | null;
-  text: string;
-  clientTurnId: string;
-  controller: AbortController;
-  charts: PublishedChart[];
-  analysis: Analysis | null;
-  clarification: Clarification | null;
-  draft: { id: string; text: string } | null;
-  progress: string;
-  activities: Activity[];
-  finished: boolean;
-};
-export interface ChatState {
-  identity: Identity | null;
-  ready: boolean;
-  index: SessionIndex;
-  selected: string | null;
-  histories: Record<string, SessionHistory>;
-  responses: Record<string, ActiveResponse>;
-  creating: boolean;
-  loading: boolean;
-  error: string | null;
-  warning: string | null;
-}
 /**
  * Client-side controller owning chat state, streaming turns, and persistence.
  *
@@ -62,6 +45,7 @@ export class ChatController {
    */
   constructor(api: ChatApi = chatApi) {
     this.api = api;
+    migrateLegacyPreference();
     const { index, warning } = readIndex();
     this.state = {
       identity: null,
@@ -307,14 +291,7 @@ export class ChatController {
     if (this.disposed || !this.state.identity) {
       return;
     }
-    if (
-      this.state.index.sessions.some(
-        (session) => session.titleStatus === "pending" || session.runningTurn,
-      ) ||
-      Object.values(this.state.histories).some((history) =>
-        history.turns.some((turn) => turn.status === "running"),
-      )
-    ) {
+    if (hasPendingWork(this.state.index.sessions, Object.values(this.state.histories))) {
       this.poll = setTimeout(() => this.run(this.pollSaved()), 2000);
     }
   }
@@ -412,21 +389,7 @@ export class ChatController {
       this.update({ error: "Enter a question of 1–8,000 characters." });
       return;
     }
-    const active: ActiveResponse = {
-      sessionId: id,
-      label: parsed.data.message.slice(0, 60),
-      turnId: null,
-      text: parsed.data.message,
-      clientTurnId: parsed.data.clientTurnId,
-      controller: new AbortController(),
-      charts: [],
-      analysis: null,
-      clarification: null,
-      draft: null,
-      progress: "Starting analysis",
-      activities: [],
-      finished: false,
-    };
+    const active = createResponse(parsed.data.clientTurnId, parsed.data.message, id);
     this.update({
       responses: {
         ...this.state.responses,
@@ -450,140 +413,45 @@ export class ChatController {
    *
    * @param active - In-progress response the event belongs to.
    * @param event - Stream event to apply.
+   * @returns The response with the event applied.
    */
-  private event(active: ActiveResponse, event: StreamEvent) {
+  private event(active: ActiveResponse, event: StreamEvent): ActiveResponse {
     if (event.type !== "turn_started" && active.turnId !== event.turnId) {
       throw new Error("Stream contained a different turn.");
     }
-    switch (event.type) {
-      case "turn_started":
-        active.turnId = event.turnId;
-        break;
-      case "session_updated":
-        if (event.session.id !== active.sessionId) {
-          throw new Error("Stream contained a different session.");
-        }
-        this.update({ index: remember(this.state.index, event.session) });
-        break;
-      case "progress":
-        active.progress = event.message;
-        break;
-      case "activity": {
-        const index = active.activities.findIndex((item) => item.id === event.activity.id);
-        active.activities =
-          index < 0
-            ? [...active.activities, event.activity]
-            : active.activities.map((item, position) =>
-                position === index ? event.activity : item,
-              );
-        active.progress = `${event.activity.message} — ${event.activity.status}`;
-        break;
+    if (event.type === "session_updated") {
+      if (event.session.id !== active.sessionId) {
+        throw new Error("Stream contained a different session.");
       }
-      case "chart_ready":
-        if (!active.charts.some((chart) => chart.id === event.chart.id)) {
-          active.charts.push(event.chart);
-        }
-        break;
-      case "analysis_started":
-        active.draft = { id: event.draftId, text: "" };
-        break;
-      case "analysis_delta":
-        if (active.draft?.id !== event.draftId) {
-          throw new Error("Unexpected narrative draft.");
-        }
-        if (active.draft.text.length + event.delta.length > 16000) {
-          throw new Error("Narrative exceeded its limit.");
-        }
-        active.draft.text += event.delta;
-        break;
-      case "analysis_discarded":
-        if (active.draft?.id === event.draftId) {
-          active.draft = null;
-        }
-        break;
-      case "clarification_ready":
-        active.clarification = event.clarification;
-        active.draft = null;
-        break;
-      case "analysis_ready":
-        active.analysis = event.analysis;
-        active.draft = null;
-        break;
-      case "turn_finished":
-        active.finished = true;
-        active.activities = [];
-        active.draft = null;
-        if (event.error && this.state.selected === active.sessionId) {
-          this.update({ error: event.error.message });
-        }
-        break;
+      this.update({ index: remember(this.state.index, event.session) });
     }
-    if (active.sessionId) {
+    if (event.type === "turn_finished" && event.error && this.state.selected === active.sessionId) {
+      this.update({ error: event.error.message });
+    }
+    const next = applyEvent(active, event);
+    if (next.sessionId) {
       this.update({
-        responses: {
-          ...this.state.responses,
-          [active.sessionId]: { ...active },
-        },
+        responses: { ...this.state.responses, [next.sessionId]: next },
       });
     }
+    return next;
   }
   /**
-   * Merges a completed response into cached history when reloading it failed.
+   * Merges a finished response into its cached history when reloading it failed.
    *
    * @param active - Finished response to retain.
    */
-  private retainPublished(active: ActiveResponse) {
+  private publishToCache(active: ActiveResponse) {
     const id = active.sessionId;
-    const turnId = active.turnId;
     const cached = id ? this.state.histories[id] : undefined;
-    if (!id || !turnId || !cached) {
+    if (!id || !cached) {
       return;
     }
-    const messages = [...cached.messages];
-    if (!messages.some((message) => message.turnId === turnId && message.content.kind === "user")) {
-      messages.push({
-        id: active.clientTurnId,
-        turnId,
-        content: { kind: "user", text: active.text },
-      });
-    }
-    for (const chart of active.charts) {
-      if (
-        !messages.some(
-          (message) => message.content.kind === "chart" && message.content.chart.id === chart.id,
-        )
-      ) {
-        messages.push({
-          id: chart.id,
-          turnId,
-          content: { kind: "chart", chart },
-        });
-      }
-    }
-    if (
-      active.analysis &&
-      !messages.some((message) => message.turnId === turnId && message.content.kind === "analysis")
-    ) {
-      messages.push({
-        id: crypto.randomUUID(),
-        turnId,
-        content: { kind: "analysis", analysis: active.analysis },
-      });
-    }
-    if (
-      active.clarification &&
-      !messages.some(
-        (message) => message.turnId === turnId && message.content.kind === "clarification",
-      )
-    ) {
-      messages.push({
-        id: crypto.randomUUID(),
-        turnId,
-        content: { kind: "clarification", clarification: active.clarification },
-      });
-    }
     this.update({
-      histories: { ...this.state.histories, [id]: { ...cached, messages } },
+      histories: {
+        ...this.state.histories,
+        [id]: mergePublished(cached, active),
+      },
     });
   }
   /**
@@ -634,7 +502,7 @@ export class ChatController {
         if (this.disposed || epoch !== this.epoch) {
           return;
         }
-        this.event(active, event);
+        active = this.event(active, event);
       }
       if (!active.finished) {
         throw new Error("Connection ended before completion. Saved history has been reloaded.");
@@ -653,38 +521,69 @@ export class ChatController {
           ? error.message
           : "Connection failed. Reload saved history before sending again.";
     } finally {
-      active.controller.abort();
-      active.draft = null;
-      active.finished = true;
-      active.activities = [];
-      if (!this.disposed && epoch === this.epoch) {
-        if (active.sessionId) {
-          this.update({
-            responses: {
-              ...this.state.responses,
-              [active.sessionId]: { ...active },
-            },
-          });
-          try {
-            await this.load(active.sessionId, epoch);
-          } catch (error) {
-            failure ??= error instanceof Error ? error.message : "Could not reload saved history.";
-            if (epoch === this.epoch) {
-              this.retainPublished(active);
-            }
-          }
-        }
-        if (epoch === this.epoch && !this.disposed) {
-          const responses = { ...this.state.responses };
-          delete responses[active.sessionId ?? active.clientTurnId];
-          this.update({
-            responses,
-            creating: false,
-            ...(failure && this.state.selected === active.sessionId ? { error: failure } : {}),
-          });
-          await this.refresh();
-        }
+      failure = await this.settle(active, epoch, failure);
+    }
+  }
+  /**
+   * Publishes a finished response and reconciles it with saved history.
+   *
+   * @param active - Finished response to settle.
+   * @param epoch - Identity epoch that must still be current.
+   * @param failure - Failure message accumulated during the turn, if any.
+   * @returns The failure message to surface, or null.
+   */
+  private async settle(
+    active: ActiveResponse,
+    epoch: number,
+    failure: string | null,
+  ): Promise<string | null> {
+    active.controller.abort();
+    active.finished = true;
+    active.activities = [];
+    if (this.disposed || epoch !== this.epoch) {
+      return failure;
+    }
+    if (active.sessionId) {
+      failure = await this.reloadOrPublish(active.sessionId, active, epoch, failure);
+    }
+    if (epoch === this.epoch && !this.disposed) {
+      const responses = { ...this.state.responses };
+      delete responses[active.sessionId ?? active.clientTurnId];
+      this.update({
+        responses,
+        creating: false,
+        ...(failure && this.state.selected === active.sessionId ? { error: failure } : {}),
+      });
+      await this.refresh();
+    }
+    return failure;
+  }
+  /**
+   * Reloads saved history, retaining published artifacts when the reload fails.
+   *
+   * @param id - Session id whose history is reloaded.
+   * @param active - Finished response being reconciled.
+   * @param epoch - Identity epoch that must still be current.
+   * @param failure - Failure message accumulated during the turn, if any.
+   * @returns The failure message to surface, or null.
+   */
+  private async reloadOrPublish(
+    id: string,
+    active: ActiveResponse,
+    epoch: number,
+    failure: string | null,
+  ): Promise<string | null> {
+    this.update({
+      responses: { ...this.state.responses, [id]: { ...active } },
+    });
+    try {
+      await this.load(id, epoch);
+    } catch (error) {
+      failure ??= error instanceof Error ? error.message : "Could not reload saved history.";
+      if (epoch === this.epoch) {
+        this.publishToCache(active);
       }
     }
+    return failure;
   }
 }

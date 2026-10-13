@@ -79,7 +79,6 @@ it("reviews complete evidence and follow-up context before publishing selected c
   state.deps.reviewer = { model: { complete: review }, modelName: "review-model" };
   expect((await state.run()).status).toBe("completed");
   expect(review).toHaveBeenCalledOnce();
-  expect(state.events.filter((event) => event.type === "analysis_delta")).toHaveLength(0);
   expect(displayHistory(state.history).messages.map((message) => message.content.kind)).toEqual([
     "user",
     "chart",
