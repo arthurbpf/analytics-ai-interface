@@ -1,7 +1,9 @@
 // oxlint-disable-next-line import/no-unassigned-import -- Vite loads the application stylesheet for its side effect.
 import "./index.css";
 import { idSchema } from "@analytics/contracts";
-import { ChatPage } from "./chat/page.tsx";
+import { ChatPage } from "./chat/chat-page.tsx";
+import { ChatProvider } from "./chat/state/chat-provider.tsx";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -28,6 +30,9 @@ const indexRoute = createRoute({
   component: ChatPage,
 });
 const router = createRouter({ routeTree: rootRoute.addChildren([indexRoute]) });
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
 
 declare module "@tanstack/react-router" {
   interface Register {
@@ -42,6 +47,10 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <QueryClientProvider client={queryClient}>
+      <ChatProvider>
+        <RouterProvider router={router} />
+      </ChatProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );
