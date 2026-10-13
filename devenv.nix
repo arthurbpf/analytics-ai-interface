@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{pkgs, ...}: {
   languages.javascript = {
     enable = true;
     package = pkgs.nodejs_24;
@@ -9,11 +9,11 @@
   services.postgres = {
     enable = true;
     package = pkgs.postgresql_16;
-    extensions = extensions: [ extensions.pgvector ];
+    extensions = extensions: [extensions.pgvector];
     listen_addresses = "127.0.0.1";
     initialDatabases = [
-      { name = "analytics"; }
-      { name = "analytics_test"; }
+      {name = "analytics";}
+      {name = "analytics_test";}
     ];
   };
 
@@ -22,7 +22,7 @@
     name = "Check Conventional Commits";
     package = pkgs.commitizen;
     entry = "${pkgs.commitizen}/bin/cz check --commit-msg-file";
-    stages = [ "commit-msg" ];
+    stages = ["commit-msg"];
   };
 
   git-hooks.hooks.format = {
@@ -37,6 +37,7 @@
     pkgs.chromium
     pkgs.git
     pkgs.nixfmt
+    pkgs.railway
     pkgs.shellcheck
     pkgs.google-cloud-sdk
   ];

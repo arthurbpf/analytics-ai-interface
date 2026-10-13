@@ -1,3 +1,6 @@
+import { writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { GoogleOAuth } from "./auth.ts";
 import { OpenRouterTitles } from "./llm/titles.ts";
 import { createApp } from "./app.ts";
@@ -5,6 +8,16 @@ import { readConfig } from "./config.ts";
 import { Store } from "./db/store.ts";
 import { OpenRouter } from "./llm/openrouter.ts";
 import { BigQueryWarehouse } from "./analytics/bigquery.ts";
+
+// Railway cannot mount a secret as a file, so the GCP service-account JSON is
+// provided as an environment variable and materialized here before the BigQuery
+// client reads GOOGLE_APPLICATION_CREDENTIALS.
+const serviceAccountJson = process.env["GOOGLE_APPLICATION_CREDENTIALS_JSON"];
+if (serviceAccountJson && !process.env["GOOGLE_APPLICATION_CREDENTIALS"]) {
+  const credentialsPath = join(tmpdir(), "gcp-service-account.json");
+  writeFileSync(credentialsPath, serviceAccountJson, { mode: 0o600 });
+  process.env["GOOGLE_APPLICATION_CREDENTIALS"] = credentialsPath;
+}
 
 const config = readConfig(process.env);
 const store = new Store(config.databaseUrl);
@@ -31,9 +44,10 @@ const { app, shutdown } = createApp({
   queryBytes: config.queryBytes,
   catalogQueryBytes: config.catalogQueryBytes,
   turnBytes: config.turnBytes,
+  staticDir: config.staticDir,
 });
-const server = app.listen(config.port, "127.0.0.1", () => {
-  console.info(`API listening at http://127.0.0.1:${config.port}`);
+const server = app.listen(config.port, config.host, () => {
+  console.info(`API listening at http://${config.host}:${config.port}`);
 });
 let closing = false;
 const cleanup = async () => {

@@ -21,11 +21,14 @@ const envSchema = z.object({
   OPENROUTER_MODEL: z.string().min(1),
   OPENROUTER_REVIEW_MODEL: z.string().min(1).optional(),
   OPENROUTER_TITLE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
-  APP_ORIGIN: z.url().default("http://localhost:5173"),
+  APP_ORIGIN: z.url().optional(),
+  RAILWAY_PUBLIC_DOMAIN: z.string().min(1).optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   NODE_ENV: z.string().optional(),
   GOOGLE_CLOUD_PROJECT: z.string().min(1),
+  HOST: z.string().min(1).default("127.0.0.1"),
+  STATIC_DIR: z.string().optional(),
   PORT: positiveInteger.max(65535).default(3001),
   CATALOG_QUERY_MAX_BYTES: z.string().regex(/^\d+$/).default("2147483648"),
   QUERY_MAX_BYTES: z.string().regex(/^\d+$/).default("1073741824"),
@@ -44,12 +47,22 @@ export function readConfig(env: NodeJS.ProcessEnv) {
   ) {
     throw new Error("Byte budgets must be positive; turn cap must be >= query cap");
   }
-  const origin = new URL(value.APP_ORIGIN).origin;
-  if (value.NODE_ENV === "production" && (!env["APP_ORIGIN"] || !origin.startsWith("https://"))) {
+  const originValue =
+    value.APP_ORIGIN ??
+    (value.NODE_ENV === "production" && value.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${value.RAILWAY_PUBLIC_DOMAIN}`
+      : "http://localhost:5173");
+  const origin = new URL(originValue).origin;
+  if (value.NODE_ENV === "production" && !origin.startsWith("https://")) {
     throw new Error("Production APP_ORIGIN must be configured with HTTPS");
   }
   if (Boolean(value.GOOGLE_CLIENT_ID) !== Boolean(value.GOOGLE_CLIENT_SECRET)) {
     throw new Error("Configure both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET");
+  }
+  let databaseUrl = value.DATABASE_URL;
+  if (value.NODE_ENV === "production" && !/[?&](sslmode|ssl)=/.test(databaseUrl)) {
+    databaseUrl += databaseUrl.includes("?") ? "&" : "?";
+    databaseUrl += "sslmode=no-verify";
   }
   return {
     origin,
@@ -57,11 +70,13 @@ export function readConfig(env: NodeJS.ProcessEnv) {
     googleClientId: value.GOOGLE_CLIENT_ID,
     googleClientSecret: value.GOOGLE_CLIENT_SECRET,
     titleModel: value.OPENROUTER_TITLE_MODEL,
-    databaseUrl: value.DATABASE_URL,
+    databaseUrl,
     apiKey: value.OPENROUTER_API_KEY,
     model: value.OPENROUTER_MODEL,
     reviewModel: value.OPENROUTER_REVIEW_MODEL ?? value.OPENROUTER_MODEL,
     projectId: value.GOOGLE_CLOUD_PROJECT,
+    host: value.HOST,
+    staticDir: value.STATIC_DIR,
     port: value.PORT,
     queryBytes,
     catalogQueryBytes,

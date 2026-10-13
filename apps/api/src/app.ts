@@ -1,3 +1,4 @@
+import path from "node:path";
 import express, { type Request, type ErrorRequestHandler } from "express";
 import { z } from "zod";
 import { createExpressEndpoints, initServer } from "@ts-rest/express";
@@ -26,6 +27,7 @@ export function createApp(
     secureCookies?: boolean;
     google?: GoogleLogin | undefined;
     titles?: TitleClient;
+    staticDir?: string | undefined;
   },
 ) {
   const app = express();
@@ -135,7 +137,10 @@ export function createApp(
         const current = requireIdentity(req);
         await auth.revoke(current.tokenHash);
         stopStreams(current.tokenHash);
-        res.clearCookie("analytics_auth", { ...cookieOptions, maxAge: undefined });
+        res.clearCookie("analytics_auth", {
+          ...cookieOptions,
+          maxAge: undefined,
+        });
         return { status: 200, body: { ok: true } };
       },
       listSessions: async ({ req }) => ({
@@ -155,7 +160,10 @@ export function createApp(
       },
       result: async ({ params, req }) => {
         await deps.store.assertOwner(params.id, requireIdentity(req).identity.id);
-        return { status: 200, body: await deps.store.result(params.id, params.ref) };
+        return {
+          status: 200,
+          body: await deps.store.result(params.id, params.ref),
+        };
       },
     }),
     app,
@@ -200,7 +208,11 @@ export function createApp(
               !response.destroyed &&
               !signal.aborted
             ) {
-              await stream.send({ type: "session_updated", turnId: turn.id, session });
+              await stream.send({
+                type: "session_updated",
+                turnId: turn.id,
+                session,
+              });
             }
           } catch (error) {
             console.error(
@@ -223,7 +235,11 @@ export function createApp(
         started = true;
         const outcome = await runAgent(deps, sessionId, turn.id, signal, stream.send);
         if (!response.destroyed && !signal.aborted) {
-          await stream.send({ type: "turn_finished", turnId: turn.id, ...outcome });
+          await stream.send({
+            type: "turn_finished",
+            turnId: turn.id,
+            ...outcome,
+          });
         }
       } catch (error) {
         await deps.store.finish(turn.id, signal.aborted ? "interrupted" : "failed", {
@@ -247,6 +263,13 @@ export function createApp(
     active.set(controller, { task, tokenHash: current.tokenHash });
     await task;
   });
+  if (deps.staticDir) {
+    const staticDir = path.resolve(deps.staticDir);
+    app.use(express.static(staticDir));
+    app.get(/^\/(?!api(?:\/|$)).*/, (_request, response) => {
+      response.sendFile(path.join(staticDir, "index.html"));
+    });
+  }
   app.use(errors);
   return {
     app,
