@@ -5,7 +5,11 @@ import { limits } from "../config.ts";
 
 export interface ToolDefinition {
   type: "function";
-  function: { name: string; description: string; parameters: Record<string, unknown> };
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
 }
 const usageSchema = z.object({
   prompt_tokens: z.number().nonnegative(),
@@ -25,7 +29,10 @@ const chunkSchema = z.object({
                 index: z.number().int().min(0).max(7),
                 id: z.string().optional(),
                 function: z
-                  .object({ name: z.string().optional(), arguments: z.string().optional() })
+                  .object({
+                    name: z.string().optional(),
+                    arguments: z.string().optional(),
+                  })
                   .optional(),
               }),
             )
@@ -46,7 +53,11 @@ export interface ToolCallUpdate {
 export type OnToolCallUpdate = (update: ToolCallUpdate) => Promise<void>;
 export interface ModelResponse {
   message: Extract<ModelMessage, { role: "assistant" }>;
-  usage: { inputTokens: number | null; outputTokens: number | null; cost: number | null };
+  usage: {
+    inputTokens: number | null;
+    outputTokens: number | null;
+    cost: number | null;
+  };
 }
 export interface ModelClient {
   complete(
@@ -57,13 +68,37 @@ export interface ModelClient {
     onToolCallUpdate?: OnToolCallUpdate,
   ): Promise<ModelResponse>;
 }
+/**
+ * OpenRouter-backed streaming model client.
+ */
 export class OpenRouter implements ModelClient {
   private readonly apiKey: string;
   private readonly model: string;
+
+  /**
+   * Creates a model client.
+   *
+   * @param apiKey - OpenRouter API key.
+   * @param model - Model identifier to request.
+   */
   constructor(apiKey: string, model: string) {
     this.apiKey = apiKey;
     this.model = model;
   }
+
+  /**
+   * Streams a completion, assembling content and tool calls from SSE frames.
+   *
+   * Enforces request, output, and context byte budgets and reports tool-call deltas as
+   * they arrive.
+   *
+   * @param system - System prompt.
+   * @param messages - Conversation messages.
+   * @param tools - Tool definitions to expose.
+   * @param signal - Abort signal for cancellation.
+   * @param onToolCallUpdate - Called as tool-call arguments stream in.
+   * @returns The assistant message and token usage.
+   */
   async complete(
     system: string,
     messages: ModelMessage[],
@@ -83,7 +118,11 @@ export class OpenRouter implements ModelClient {
             case "user":
               return { role: "user", content: message.content };
             case "tool":
-              return { role: "tool", tool_call_id: message.toolCallId, content: message.content };
+              return {
+                role: "tool",
+                tool_call_id: message.toolCallId,
+                content: message.content,
+              };
             case "assistant":
               return {
                 role: "assistant",
@@ -93,7 +132,10 @@ export class OpenRouter implements ModelClient {
                       tool_calls: message.toolCalls.map((call) => ({
                         id: call.id,
                         type: "function",
-                        function: { name: call.name, arguments: call.arguments },
+                        function: {
+                          name: call.name,
+                          arguments: call.arguments,
+                        },
                       })),
                     }
                   : {}),
@@ -110,7 +152,10 @@ export class OpenRouter implements ModelClient {
     }
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(body),
       signal,
     });
@@ -128,6 +173,11 @@ export class OpenRouter implements ModelClient {
     let outputBytes = 0;
     const frames: string[] = [];
     const parser = createParser({
+      /**
+       * Buffers each parsed SSE frame for the read loop to consume.
+       *
+       * @param event - Parsed server-sent event.
+       */
       onEvent: (event) => {
         frames.push(event.data);
       },
@@ -174,7 +224,11 @@ export class OpenRouter implements ModelClient {
             }
             content += choice.delta.content ?? "";
             for (const delta of choice.delta.tool_calls ?? []) {
-              const call = calls.get(delta.index) ?? { id: "", name: "", arguments: "" };
+              const call = calls.get(delta.index) ?? {
+                id: "",
+                name: "",
+                arguments: "",
+              };
               call.id += delta.id ?? "";
               call.name += delta.function?.name ?? "";
               call.arguments += delta.function?.arguments ?? "";

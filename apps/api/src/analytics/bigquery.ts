@@ -16,7 +16,11 @@ import type { QueryBudget } from "./budget.ts";
 import { guardSql, checkDryRun, type DryRunAccess } from "./guardrails.ts";
 
 const bytes = z.string().regex(/^\d+$/);
-const fieldSchema = z.object({ name: z.string(), type: z.string(), mode: z.string().optional() });
+const fieldSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  mode: z.string().optional(),
+});
 const metadataSchema = z.object({
   jobReference: z.object({ jobId: z.string().optional() }).optional(),
   statistics: z.object({
@@ -25,7 +29,13 @@ const metadataSchema = z.object({
       totalBytesProcessed: bytes.default("0"),
       totalBytesBilled: bytes.optional(),
       referencedTables: z
-        .array(z.object({ projectId: z.string(), datasetId: z.string(), tableId: z.string() }))
+        .array(
+          z.object({
+            projectId: z.string(),
+            datasetId: z.string(),
+            tableId: z.string(),
+          }),
+        )
         .default([]),
       referencedRoutines: z.array(z.unknown()).default([]),
       schema: z.object({ fields: z.array(fieldSchema) }).optional(),
@@ -58,9 +68,22 @@ export interface Warehouse {
 }
 const rawRowsSchema = z.array(z.record(z.string(), z.unknown()));
 const wrappedValue = z.object({ value: z.string() });
+/**
+ * Reports whether a result fits within the serialized result byte limit.
+ *
+ * @param data - Candidate result data.
+ * @returns True when the JSON-serialized result is within the byte budget.
+ */
 function fitsResult(data: ResultData): boolean {
   return Buffer.byteLength(JSON.stringify(data)) <= limits.resultBytes;
 }
+/**
+ * Converts a raw BigQuery cell into a supported scalar.
+ *
+ * @param value - Raw cell value from the warehouse.
+ * @returns The value as a string, number, boolean, or null.
+ * @throws When the value is unsafe or nested.
+ */
 function normalize(value: unknown): string | number | boolean | null {
   if (value === null || value === undefined) {
     return null;
@@ -87,6 +110,17 @@ function normalize(value: unknown): string | number | boolean | null {
   }
   throw new ToolError("Nested result cells are unsupported. Return scalar aggregates instead.");
 }
+/**
+ * Converts a raw query response into a bounded, JSON-safe result.
+ *
+ * Truncates columns and rows to the configured limits and marks the result incomplete
+ * when anything was dropped or the row count was capped.
+ *
+ * @param fields - BigQuery schema fields for the query.
+ * @param rawRows - Raw rows returned by the warehouse.
+ * @param totalRows - Total row count reported by BigQuery as a decimal string.
+ * @returns The bounded result data.
+ */
 export function boundResult(
   fields: z.infer<typeof fieldSchema>[],
   rawRows: unknown,
@@ -122,11 +156,29 @@ export function boundResult(
   }
   return { columns, rows, complete, totalRows };
 }
+/**
+ * BigQuery-backed warehouse that dry-runs and executes queries within byte caps.
+ */
 export class BigQueryWarehouse implements Warehouse {
   private readonly client: BigQuery;
+
+  /**
+   * Creates a warehouse bound to a Google Cloud project.
+   *
+   * @param projectId - Google Cloud project that owns the billing and jobs.
+   */
   constructor(projectId: string) {
     this.client = new BigQuery({ projectId });
   }
+
+  /**
+   * Dry-runs a query to estimate bytes and inspect its access plan.
+   *
+   * @param sql - SQL to inspect.
+   * @param signal - Abort signal for cancellation.
+   * @param parameters - Bound query parameters, if any.
+   * @returns The dry-run inspection metadata.
+   */
   async inspect(
     sql: string,
     signal: AbortSignal,
@@ -150,6 +202,15 @@ export class BigQueryWarehouse implements Warehouse {
       estimatedBytes: BigInt(query.totalBytesProcessed),
     };
   }
+  /**
+   * Executes a query under a byte cap, cancelling it if the signal aborts.
+   *
+   * @param sql - SQL to execute.
+   * @param cap - Maximum bytes BigQuery may bill for the job.
+   * @param signal - Abort signal that cancels the job.
+   * @param parameters - Bound query parameters, if any.
+   * @returns The execution metadata and bounded result data.
+   */
   async execute(
     sql: string,
     cap: bigint,
@@ -166,6 +227,9 @@ export class BigQueryWarehouse implements Warehouse {
       jobTimeoutMs: limits.deadlineMs,
     });
     let cancellation: Promise<void> | undefined;
+    /**
+     * Cancels the running BigQuery job, logging but not surfacing cancel failures.
+     */
     const cancel = async () => {
       try {
         await job.cancel();
@@ -174,6 +238,9 @@ export class BigQueryWarehouse implements Warehouse {
       }
     };
     const aborted = Promise.withResolvers<never>();
+    /**
+     * Cancels the job and rejects the race when the abort signal fires.
+     */
     const onAbort = () => {
       cancellation = cancel();
       aborted.reject(signal.reason);
@@ -196,7 +263,10 @@ export class BigQueryWarehouse implements Warehouse {
           z.unknown(),
           z.unknown(),
           z
-            .object({ totalRows: bytes, schema: z.object({ fields: z.array(fieldSchema) }) })
+            .object({
+              totalRows: bytes,
+              schema: z.object({ fields: z.array(fieldSchema) }),
+            })
             .passthrough(),
         ])
         .parse(rawResponse);
@@ -222,6 +292,19 @@ export class BigQueryWarehouse implements Warehouse {
     }
   }
 }
+/**
+ * Guards, budget-checks, executes, and post-processes a single query.
+ *
+ * Dry-runs for an estimate, reserves bytes, executes under the cap, reconciles billed
+ * bytes, and attaches catalog scope, caveats, and display metadata to the result.
+ *
+ * @param warehouse - Warehouse used to inspect and execute the SQL.
+ * @param budget - Turn byte budget that reserves and settles this query.
+ * @param input - SQL, purpose, and optional catalog or display metadata.
+ * @param signal - Abort signal for cancellation.
+ * @param perQueryCap - Optional per-query byte cap.
+ * @returns The final bounded query result.
+ */
 export async function runQuery(
   warehouse: Warehouse,
   budget: QueryBudget,
@@ -371,7 +454,10 @@ export async function runQuery(
   return queryResultSchema.parse({
     origin: input.catalog ? "catalog" : "adhoc",
     catalog: input.catalog
-      ? { arguments: input.catalog.arguments, definition: input.catalog.definition }
+      ? {
+          arguments: input.catalog.arguments,
+          definition: input.catalog.definition,
+        }
       : null,
     parameters: input.catalog?.parameters ?? {},
     justification: input.justification ?? null,

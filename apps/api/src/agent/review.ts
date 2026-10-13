@@ -17,8 +17,14 @@ const issueSchema = z.strictObject({
   correction: z.string().trim().min(1).max(1000),
 });
 export const verdictSchema = z.discriminatedUnion("approved", [
-  z.strictObject({ approved: z.literal(true), issues: z.array(issueSchema).max(0) }),
-  z.strictObject({ approved: z.literal(false), issues: z.array(issueSchema).min(1).max(8) }),
+  z.strictObject({
+    approved: z.literal(true),
+    issues: z.array(issueSchema).max(0),
+  }),
+  z.strictObject({
+    approved: z.literal(false),
+    issues: z.array(issueSchema).min(1).max(8),
+  }),
 ]);
 export type ReviewVerdict = z.infer<typeof verdictSchema>;
 export interface Reviewer {
@@ -35,8 +41,17 @@ export interface ReviewRecord {
   error: "context_limit" | "invalid_verdict" | "provider_failed" | "interrupted" | null;
 }
 
+/**
+ * Error thrown when the review could not produce a usable verdict.
+ */
 export class ReviewFailure extends Error {
   readonly code: "context_limit" | "invalid_verdict";
+
+  /**
+   * Creates a review failure.
+   *
+   * @param code - Reason the review could not complete.
+   */
   constructor(code: "context_limit" | "invalid_verdict") {
     super(code);
     this.code = code;
@@ -55,6 +70,23 @@ const tools: ToolDefinition[] = [
   },
 ];
 
+/**
+ * Runs a bounded analytical review of a proposed answer.
+ *
+ * Sends the candidate, charts, evidence, definitions, and schema to the reviewer model
+ * and validates that it returns exactly one well-formed verdict.
+ *
+ * @param reviewer - Reviewer model and name.
+ * @param conversation - Model conversation that produced the candidate.
+ * @param candidate - Analysis proposed for publication.
+ * @param charts - Charts selected for the candidate.
+ * @param results - Saved results referenced by the candidate.
+ * @param signal - Abort signal for cancellation.
+ * @param onStart - Called immediately before the model call begins.
+ * @param onUsage - Called with the model usage once the response arrives.
+ * @returns The validated review verdict.
+ * @throws When the context limit is exceeded or the verdict is unusable.
+ */
 export async function reviewAnalysis(
   reviewer: Reviewer,
   conversation: ModelMessage[],

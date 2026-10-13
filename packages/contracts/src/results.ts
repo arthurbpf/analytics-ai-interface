@@ -7,6 +7,13 @@ export const columnDisplaySchema = z.object({
   format: z.enum(["integer", "decimal", "usd", "percentage", "seconds"]).optional(),
 });
 export type ColumnDisplay = z.infer<typeof columnDisplaySchema>;
+/**
+ * Returns a column's display label, falling back to a title-cased column name.
+ *
+ * @param name - Raw column name.
+ * @param display - Optional column display metadata.
+ * @returns The configured label, or the name with underscores removed and first letter capitalized.
+ */
 export function columnLabel(name: string, display?: ColumnDisplay): string {
   if (display?.label) {
     return display.label;

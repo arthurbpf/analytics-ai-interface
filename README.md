@@ -149,6 +149,15 @@ type checks use the pinned TypeScript compiler. Type assertions and explicit
 Formatting belongs to Oxfmt. The original exercise and architecture documents
 are excluded to preserve the supplied references.
 
+Complexity limits (cyclomatic complexity, nesting, parameter and statement counts,
+function and file length) are enforced as errors. A few cohesive core files carry
+per-file overrides in `.oxlintrc.json`; keep new code within the strict defaults.
+
+Every named function, method, and class must carry TSDoc (summary, `@param`,
+`@returns`, `@throws`). Presence is enforced by `eslint-plugin-jsdoc` loaded through
+Oxlint's `jsPlugins` as `jsdoc-js`; completeness is enforced by Oxlint's native
+`jsdoc` rules. Inline callbacks and vendored `components/ui` are exempt.
+
 Builds and checks are cached by Turborepo. Development servers and lint fixes
 are never cached. Add shared packages under `packages/` when there is code to share.
 

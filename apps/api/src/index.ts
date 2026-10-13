@@ -50,12 +50,18 @@ const server = app.listen(config.port, config.host, () => {
   console.info(`API listening at http://${config.host}:${config.port}`);
 });
 let closing = false;
+/**
+ * Closes the HTTP server, app resources, and the database pool.
+ */
 const cleanup = async () => {
   server.close();
   await shutdown();
   await store.pool.end();
   server.closeAllConnections();
 };
+/**
+ * Starts shutdown once, mapping the outcome to the process exit code.
+ */
 const stop = () => {
   if (closing) {
     return;

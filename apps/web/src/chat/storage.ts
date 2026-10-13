@@ -9,7 +9,9 @@ const preferencesSchema = z.object({
   sidebarOpen: z.boolean(),
 });
 export type SessionEntry = Session & { label: string };
-export type SessionIndex = z.infer<typeof preferencesSchema> & { sessions: SessionEntry[] };
+export type SessionIndex = z.infer<typeof preferencesSchema> & {
+  sessions: SessionEntry[];
+};
 export const emptyIndex: SessionIndex = {
   version: 2,
   identityId: null,
@@ -17,6 +19,11 @@ export const emptyIndex: SessionIndex = {
   selected: null,
   sidebarOpen: true,
 };
+/**
+ * Reads persisted preferences, migrating away the legacy session cache.
+ *
+ * @returns The stored index and an optional warning when preferences could not be read.
+ */
 export function readIndex(): { index: SessionIndex; warning: string | null } {
   try {
     localStorage.removeItem("analytics.sessions.v1");
@@ -31,9 +38,18 @@ export function readIndex(): { index: SessionIndex; warning: string | null } {
       warning: parsed.success ? null : "Saved preferences were invalid and have been reset.",
     };
   } catch {
-    return { index: emptyIndex, warning: "Browser preferences are unavailable." };
+    return {
+      index: emptyIndex,
+      warning: "Browser preferences are unavailable.",
+    };
   }
 }
+/**
+ * Persists preferences to local storage.
+ *
+ * @param index - Index to persist.
+ * @returns Null on success, or a warning when browser storage is unavailable.
+ */
 export function writeIndex(index: SessionIndex): string | null {
   try {
     localStorage.setItem(storageKey, JSON.stringify(preferencesSchema.parse(index)));
@@ -42,6 +58,13 @@ export function writeIndex(index: SessionIndex): string | null {
     return "Browser preferences are unavailable.";
   }
 }
+/**
+ * Adds or refreshes a session in the index, keeping it sorted by most recently updated.
+ *
+ * @param index - Current session index.
+ * @param session - Session to insert or update.
+ * @returns A new index with the session placed first by update time.
+ */
 export function remember(index: SessionIndex, session: Session): SessionIndex {
   return {
     ...index,

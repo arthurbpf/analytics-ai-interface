@@ -27,6 +27,18 @@ the problem beat more lines that almost do.
   commit message.
 - Prefer caution when speed and caution conflict, with judgment for trivial work.
   Before finishing, simplify anything a senior engineer would call overcomplicated.
+- Document every named function, method, and class with TSDoc: a summary line,
+  `@param name - description` for each parameter, and `@returns` when a value is
+  returned. Add `@throws` only for deliberate throws. Do not add `{type}` tags
+  (TypeScript signatures carry types) or document inline callbacks. This is
+  enforced by `jsdoc-js/require-jsdoc`; keep written docs complete
+  (`jsdoc/require-param`, `jsdoc/require-returns`).
+- Respect the complexity gate in `.oxlintrc.json`: cyclomatic complexity, nesting
+  depth, parameter count, statement count, function length, and file length. A few
+  cohesive core files (agent loop, query executor, catalog builder, LLM client, app
+  wiring, chat controller, and chat page) carry explicit per-file overrides so their
+  documented budgets do not fail; all other code must meet the strict defaults, and
+  new code should be split rather than added to the override list.
 
 # Project context
 
@@ -219,3 +231,14 @@ whose name ends in `_test`.
 Hosting capabilities and pricing change; verify current official documentation
 when implementing deployment. The local backend is implemented; deployment
 has not been performed.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+<!-- END:turborepo-agent-rules -->

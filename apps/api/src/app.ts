@@ -11,6 +11,13 @@ import { runAgent, type AgentDependencies } from "./agent/loop.ts";
 import type { Reviewer } from "./agent/review.ts";
 import { openStream } from "./http/stream.ts";
 
+/**
+ * Reads a named cookie from an incoming request.
+ *
+ * @param request - Express request carrying the cookie header.
+ * @param name - Cookie name to read.
+ * @returns The cookie value, or undefined when absent.
+ */
 const cookie = (request: Request, name: string) => {
   const part = request.headers.cookie
     ?.split(";")
@@ -19,6 +26,12 @@ const cookie = (request: Request, name: string) => {
   return part?.slice(name.length + 1);
 };
 
+/**
+ * Builds the Express application with auth, chat endpoints, and static serving.
+ *
+ * @param deps - Store, model clients, warehouse, budgets, and optional integrations.
+ * @returns The configured app and a shutdown handler that drains in-flight work.
+ */
 export function createApp(
   deps: AgentDependencies & {
     store: Store;
@@ -43,6 +56,13 @@ export function createApp(
     path: "/",
     maxAge: authLifetimeMs,
   };
+  /**
+   * Returns the authenticated identity for a request, or rejects when absent.
+   *
+   * @param request - Express request to resolve.
+   * @returns The authenticated identity.
+   * @throws When the request has no identity.
+   */
   const requireIdentity = (request: Request) => {
     const current = identities.get(request);
     if (!current) {
@@ -50,6 +70,11 @@ export function createApp(
     }
     return current;
   };
+  /**
+   * Aborts any in-flight streams owned by a credential.
+   *
+   * @param tokenHash - Credential whose streams should be stopped.
+   */
   const stopStreams = (tokenHash: string) => {
     for (const [controller, work] of active) {
       if (work.tokenHash === tokenHash) {
@@ -181,6 +206,9 @@ export function createApp(
     const current = requireIdentity(request);
     await deps.store.assertOwner(sessionId, current.identity.id);
     const controller = new AbortController();
+    /**
+     * Aborts the turn when the browser disconnects.
+     */
     const onClose = () => {
       controller.abort(new Error("Browser disconnected"));
     };
@@ -194,10 +222,16 @@ export function createApp(
     response.once("close", onClose);
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(limits.deadlineMs)]);
     const stream = openStream(response, signal);
+    /**
+     * Runs the agent turn, streams its events, and finalizes the stream.
+     */
     const work = async () => {
       let started = false;
       const titleAttempt = turn.titleAttempt;
       if (titleAttempt) {
+        /**
+         * Generates a title and streams the updated session when the turn has started.
+         */
         const titleTask = async () => {
           try {
             const session = await generateTitle(deps.store, deps.titles, sessionId, titleAttempt);
@@ -283,6 +317,14 @@ export function createApp(
   };
 }
 
+/**
+ * Terminal error handler that maps known errors to HTTP responses.
+ *
+ * @param error - Error thrown by an earlier handler.
+ * @param _request - Unused Express request.
+ * @param response - Express response to write.
+ * @param _next - Unused Express next callback.
+ */
 const errors: ErrorRequestHandler = (error: unknown, _request, response, _next) => {
   if (response.headersSent) {
     response.end();

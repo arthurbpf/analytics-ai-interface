@@ -12,6 +12,16 @@ const higherRiskMetrics = new Set([
   "funnel",
 ]);
 
+/**
+ * Decides whether an answer must pass analytical review before publication.
+ *
+ * Single catalog results are exempt only when they use a low-risk metric with no extra
+ * dimensions, filters, grain, top-N, or steps; everything else is reviewed.
+ *
+ * @param results - Saved results referenced by the proposed analysis.
+ * @param charts - Charts selected for publication with the analysis.
+ * @returns True when the answer must be reviewed before it is published.
+ */
 export function requiresReview(results: QueryResult[], charts: PublishedChart[]): boolean {
   if (results.length === 0) {
     return false;

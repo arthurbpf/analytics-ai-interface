@@ -24,12 +24,37 @@ import { reviewAnalysis, ReviewFailure, type Reviewer, type ReviewRecord } from 
 import { requiresReview } from "./review-policy.ts";
 import { addUsage, emptyUsage, unknownUsage } from "../llm/usage.ts";
 
+/**
+ * Error signalling that a turn ended because of review, not a runtime fault.
+ */
 class ReviewError extends Error {
   readonly code: "review_failed" | "analysis_rejected";
+
+  /**
+   * Creates a review error.
+   *
+   * @param code - Whether review failed or the analysis was rejected.
+   */
   constructor(code: "review_failed" | "analysis_rejected") {
     super(code);
     this.code = code;
   }
+}
+
+/**
+ * Reports whether a failed tool call can be repaired by the model.
+ *
+ * Schema, tool, and not-found errors are surfaced back to the model as feedback; any
+ * other failure (transport, database, review) is not model-correctable and must abort.
+ *
+ * @param error - The value thrown while executing a tool call.
+ * @returns True when the model may retry with corrected arguments.
+ */
+function isModelCorrectable(error: unknown): error is z.ZodError | ToolError | RequestError {
+  if (error instanceof z.ZodError || error instanceof ToolError) {
+    return true;
+  }
+  return error instanceof RequestError && error.status === 404;
 }
 
 const toolActivities = new Map<string, Pick<Activity, "stage" | "message">>([
@@ -57,6 +82,20 @@ export interface TurnOutcome {
   status: TerminalStatus;
   error: ApiError | null;
 }
+/**
+ * Runs one bounded analyst turn, including optional analytical review.
+ *
+ * Drives the model/tool loop until the analyst presents an answer or requests
+ * clarification, enforcing model-call, SQL, chart, and correction budgets, and
+ * emitting stream events as work progresses.
+ *
+ * @param deps - Store, model clients, warehouse, and byte budgets.
+ * @param sessionId - Session the turn belongs to.
+ * @param turnId - Turn being executed.
+ * @param signal - Abort signal for cancellation.
+ * @param emit - Callback that publishes stream events.
+ * @returns The terminal status and any safe error for the turn.
+ */
 export async function runAgent(
   deps: AgentDependencies,
   sessionId: string,
@@ -78,15 +117,34 @@ export async function runAgent(
   let conversation: ModelMessage[] = [];
   let committed = false;
   let invalidTools = 0;
+  /**
+   * Emits a progress event for the current stage.
+   *
+   * @param stage - Stage the turn is currently in.
+   * @param message - Human-readable progress message.
+   */
   const progress = async (
     stage: "thinking" | "querying" | "charting" | "composing",
     message: string,
   ) => {
     await emit({ type: "progress", turnId, stage, message });
   };
+  /**
+   * Appends a model message to the stored turn.
+   *
+   * @param message - Model message to persist.
+   */
   const append = async (message: ModelMessage) => {
     await store.append(sessionId, turnId, { kind: "model", message });
   };
+  /**
+   * Commits and publishes a terminal analysis or clarification, closing the tool exchange.
+   *
+   * @param call - Tool call being completed.
+   * @param content - Analysis or clarification to publish.
+   * @param selectedCharts - Charts to publish with the answer.
+   * @returns A final tool result that ends the turn.
+   */
   const complete = async (
     call: ToolCall,
     content: Extract<MessageContent, { kind: "analysis" | "clarification" }>,
@@ -105,12 +163,29 @@ export async function runAgent(
       for (const chart of selectedCharts) {
         await emit({ type: "chart_ready", turnId, chart });
       }
-      await emit({ type: "analysis_ready", turnId, analysis: content.analysis });
+      await emit({
+        type: "analysis_ready",
+        turnId,
+        analysis: content.analysis,
+      });
     } else {
-      await emit({ type: "clarification_ready", turnId, clarification: content.clarification });
+      await emit({
+        type: "clarification_ready",
+        turnId,
+        clarification: content.clarification,
+      });
     }
     return { output: { accepted: true }, final: true };
   };
+  /**
+   * Parses and dispatches a single tool call, returning its result.
+   *
+   * @param call - Tool call to execute.
+   * @param finalOnly - When true, only presentation tools may run.
+   * @param step - Current model step, used to bound repair calls.
+   * @returns The tool output and whether the turn is now final.
+   * @throws When the tool call is unknown or its arguments are invalid.
+   */
   const execute = async (
     call: ToolCall,
     finalOnly: boolean,
@@ -176,7 +251,10 @@ export async function runAgent(
       }
       case "get_result": {
         const input = toolSchemas.get_result.parse(args);
-        return { output: await store.result(sessionId, input.resultRef), final: false };
+        return {
+          output: await store.result(sessionId, input.resultRef),
+          final: false,
+        };
       }
       case "publish_chart": {
         if (charts.length >= limits.charts) {
@@ -186,9 +264,15 @@ export async function runAgent(
         const spec = toolSchemas.publish_chart.parse(args);
         const chart = validateChart(spec, await store.result(sessionId, spec.resultRef));
         signal.throwIfAborted();
-        await store.append(sessionId, turnId, { kind: "chart_candidate", chart });
+        await store.append(sessionId, turnId, {
+          kind: "chart_candidate",
+          chart,
+        });
         charts.push(chart);
-        return { output: { chartId: chart.id, resultRef: spec.resultRef }, final: false };
+        return {
+          output: { chartId: chart.id, resultRef: spec.resultRef },
+          final: false,
+        };
       }
       case "request_clarification":
         return complete(call, {
@@ -254,7 +338,10 @@ export async function runAgent(
             }
           }
           record.latencyMs = Date.now() - started;
-          await store.append(sessionId, turnId, { kind: "review", review: record });
+          await store.append(sessionId, turnId, {
+            kind: "review",
+            review: record,
+          });
           signal.throwIfAborted();
           if (!record.verdict || record.error) {
             throw new ReviewError("review_failed");
@@ -301,6 +388,14 @@ export async function runAgent(
       );
       conversation = context;
       const activities = new Map<number, Activity>();
+      /**
+       * Emits an activity update for a tool call, deduplicating unchanged states.
+       *
+       * @param index - Position of the tool call within the response.
+       * @param name - Tool name being reported.
+       * @param status - Activity status to report.
+       * @param args - Raw tool arguments, when available.
+       */
       const activity = async (
         index: number,
         name: string,
@@ -330,7 +425,12 @@ export async function runAgent(
         if (previous?.status === status && previous.message === message) {
           return;
         }
-        const next: Activity = { ...details, id: `${step}:${index}`, message, status };
+        const next: Activity = {
+          ...details,
+          id: `${step}:${index}`,
+          message,
+          status,
+        };
         activities.set(index, next);
         await emit({ type: "activity", turnId, activity: next });
       };
@@ -388,12 +488,7 @@ export async function runAgent(
           }
           await activity(index, call.name, "failed", call.arguments);
           // Database and transport failures are not model-correctable.
-          if (
-            !(error instanceof Error) ||
-            (!(error instanceof z.ZodError) &&
-              !(error instanceof ToolError) &&
-              !(error instanceof RequestError && error.status === 404))
-          ) {
+          if (!isModelCorrectable(error)) {
             throw error;
           }
           invalidTools++;

@@ -61,6 +61,16 @@ const builtins = new Set([
   "LENGTH",
 ]);
 
+/**
+ * Validates that SQL is a single read-only SELECT over the allowed dataset.
+ *
+ * Parses the statement, rejects writes, scripting, unknown functions, and references to
+ * any table other than the GA4 events tables, and returns the trimmed statement.
+ *
+ * @param sql - Candidate SQL submitted by the model.
+ * @returns The trimmed SQL statement, safe to execute.
+ * @throws When the SQL is not a permitted single SELECT.
+ */
 export function guardSql(sql: string): string {
   const source = sql.trim().replace(/;\s*$/, "");
   if (!source || source.length > 20000) {
@@ -83,6 +93,11 @@ export function guardSql(sql: string): string {
     throw new ToolError("Only SELECT statements are allowed");
   }
   const ctes = new Set<string>();
+  /**
+   * Collects names of common table expressions so their references count as allowed.
+   *
+   * @param value - AST node or array to search for `with` clauses.
+   */
   const collectCtes = (value: unknown): void => {
     if (Array.isArray(value)) {
       value.forEach(collectCtes);
@@ -110,6 +125,11 @@ export function guardSql(sql: string): string {
     Object.values(node.data).forEach(collectCtes);
   };
   collectCtes(root);
+  /**
+   * Walks the AST rejecting writes, unsupported functions, and prohibited tables.
+   *
+   * @param value - AST node or array to inspect.
+   */
   const visit = (value: unknown): void => {
     if (Array.isArray(value)) {
       value.forEach(visit);
@@ -129,6 +149,11 @@ export function guardSql(sql: string): string {
     if (type === "function" || type === "aggr_func") {
       const name = node.data["name"];
       const parts: string[] = [];
+      /**
+       * Flattens a parsed function name into its identifier parts.
+       *
+       * @param v - Name node or nested structure to flatten.
+       */
       const collectNames = (v: unknown): void => {
         if (typeof v === "string") {
           parts.push(v);
@@ -178,6 +203,12 @@ export interface DryRunAccess {
   tables: { projectId?: string; datasetId?: string; tableId?: string }[];
   routines: unknown[];
 }
+/**
+ * Verifies that a dry run is a SELECT over permitted tables with no routines.
+ *
+ * @param metadata - Dry-run access metadata returned by the warehouse.
+ * @throws When the dry run is not a permitted read-only access plan.
+ */
 export function checkDryRun(metadata: DryRunAccess) {
   if (metadata.statementType !== "SELECT" || metadata.routines.length) {
     throw new ToolError("Dry run must be a SELECT without persistent routines");

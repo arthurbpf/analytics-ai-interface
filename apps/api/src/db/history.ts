@@ -13,6 +13,15 @@ export type AgentHistory = Omit<SessionHistory, "messages"> & {
   messages: { id: string; turnId: string; content: StoredMessageContent }[];
 };
 
+/**
+ * Projects stored agent history into the display history sent to the browser.
+ *
+ * Model/tool exchanges, chart candidates, and review records stay backend-only; user
+ * prompts and published output are retained.
+ *
+ * @param history - Full stored history including protocol and private records.
+ * @returns History containing only messages safe to display.
+ */
 export function displayHistory(history: AgentHistory): SessionHistory {
   return {
     ...history,
@@ -24,7 +33,12 @@ export function displayHistory(history: AgentHistory): SessionHistory {
         return [{ ...message, content: message.content }];
       }
       if (message.content.message.role === "user") {
-        return [{ ...message, content: { kind: "user", text: message.content.message.content } }];
+        return [
+          {
+            ...message,
+            content: { kind: "user", text: message.content.message.content },
+          },
+        ];
       }
       return [];
     }),

@@ -10,11 +10,28 @@ import {
 } from "@analytics/contracts";
 import type { AgentStore } from "../db/store.ts";
 
+/**
+ * Validates a chart specification against its saved result and publishes it.
+ *
+ * Ensures the result is complete and owned by the session, that referenced columns exist,
+ * and that the chart type's column roles are satisfied.
+ *
+ * @param spec - Chart specification proposed by the model.
+ * @param result - Complete saved result the chart will render.
+ * @returns The validated published chart.
+ * @throws When the result or column mappings are invalid for the chart.
+ */
 export function validateChart(spec: ChartSpec, result: QueryResult): PublishedChart {
   chartSpecSchema.parse(spec);
   if (result.ref !== spec.resultRef || !result.complete) {
     throw new ToolError("Chart requires a complete saved result from this session");
   }
+  /**
+   * Resolves a column by name, failing when it is absent.
+   *
+   * @param name - Column name to look up.
+   * @returns The matching result column.
+   */
   const column = (name: string) => {
     const found = result.columns.find((field) => field.name === name);
     if (!found) {
@@ -22,6 +39,11 @@ export function validateChart(spec: ChartSpec, result: QueryResult): PublishedCh
     }
     return found;
   };
+  /**
+   * Asserts that a column holds safe numeric values.
+   *
+   * @param name - Column name that must be numeric.
+   */
   const numeric = (name: string) => {
     if (
       column(name).type !== "number" ||
@@ -71,6 +93,19 @@ export function validateChart(spec: ChartSpec, result: QueryResult): PublishedCh
     },
   };
 }
+/**
+ * Validates a final analysis and merges in the caveats of its evidence.
+ *
+ * Requires every referenced result to exist and be complete, and every selected chart to
+ * be prepared and grounded in one of those results.
+ *
+ * @param value - Untrusted analysis arguments from the model.
+ * @param sessionId - Session that must own all referenced results.
+ * @param store - Store used to load referenced results.
+ * @param charts - Charts prepared so far in the turn.
+ * @returns The validated analysis with collected caveats.
+ * @throws When evidence or chart references are invalid.
+ */
 export async function validateAnalysis(
   value: unknown,
   sessionId: string,
@@ -95,5 +130,8 @@ export async function validateAnalysis(
       throw new ToolError("Chart result must be included in final evidence references");
     }
   }
-  return { ...analysis, caveats: [...new Set([...analysis.caveats, ...requiredCaveats])] };
+  return {
+    ...analysis,
+    caveats: [...new Set([...analysis.caveats, ...requiredCaveats])],
+  };
 }

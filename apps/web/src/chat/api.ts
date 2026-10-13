@@ -8,7 +8,17 @@ import {
   type StreamEvent,
 } from "@analytics/contracts";
 
+/**
+ * Error carrying the API status and machine code from a failed request.
+ */
 export class ApiFailure extends Error {
+  /**
+   * Creates an API failure.
+   *
+   * @param status - HTTP status code returned by the API.
+   * @param code - Stable machine-readable error code.
+   * @param message - Human-readable message.
+   */
   constructor(
     readonly status: number,
     readonly code: string,

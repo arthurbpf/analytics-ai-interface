@@ -21,6 +21,14 @@ import {
 import { plotData } from "./chart-data.ts";
 import { formatCell } from "./display.ts";
 
+/**
+ * Renders selected result columns as a table.
+ *
+ * @param props - Component props.
+ * @param props.data - Result data to render.
+ * @param props.columns - Column names to show, defaulting to all columns.
+ * @returns The rendered table.
+ */
 function ResultTable({
   data,
   columns = data.columns.map((column) => column.name),
@@ -63,6 +71,13 @@ function ResultTable({
     </Table>
   );
 }
+/**
+ * Renders a published chart according to its type.
+ *
+ * @param props - Component props.
+ * @param props.chart - Chart to render.
+ * @returns The rendered table, KPI, line, or bar visualization.
+ */
 function Visualization({ chart }: { chart: PublishedChart }) {
   const { spec, data } = chart;
   if (spec.type === "table") {
@@ -165,11 +180,26 @@ function Visualization({ chart }: { chart: PublishedChart }) {
     </>
   );
 }
+/**
+ * Error boundary that contains chart render failures.
+ */
 class ChartBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   override state = { failed: false };
+
+  /**
+   * Switches the boundary to its failed state when a child throws.
+   *
+   * @returns State marking the boundary as failed.
+   */
   static getDerivedStateFromError() {
     return { failed: true };
   }
+
+  /**
+   * Renders the fallback alert or the wrapped children.
+   *
+   * @returns The failure message or the child content.
+   */
   override render() {
     return this.state.failed ? (
       <p role="alert">This visualization could not render. Reload saved history.</p>
@@ -178,6 +208,13 @@ class ChartBoundary extends Component<{ children: ReactNode }, { failed: boolean
     );
   }
 }
+/**
+ * Renders a published chart within a card, including caveats and a preview warning.
+ *
+ * @param props - Component props.
+ * @param props.chart - Chart to display.
+ * @returns The rendered chart card.
+ */
 export function ChartView({ chart }: { chart: PublishedChart }) {
   return (
     <Card className="my-4 min-w-0" data-testid={`chart-${chart.spec.type}`}>

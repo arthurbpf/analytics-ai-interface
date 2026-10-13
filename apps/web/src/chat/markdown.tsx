@@ -9,6 +9,13 @@ const components: Components = {
   ),
 };
 
+/**
+ * Renders trusted Markdown as safe HTML with GFM tables and images removed.
+ *
+ * @param props - Component props.
+ * @param props.children - Markdown source to render.
+ * @returns The rendered Markdown element.
+ */
 export function Markdown({ children }: { children: string }) {
   return (
     <div className="markdown">

@@ -34,6 +34,15 @@ const envSchema = z.object({
   QUERY_MAX_BYTES: z.string().regex(/^\d+$/).default("1073741824"),
   TURN_MAX_BYTES: z.string().regex(/^\d+$/).default("5368709120"),
 });
+/**
+ * Parses and validates runtime configuration from the process environment.
+ *
+ * Fails fast on missing credentials, inconsistent byte budgets, or production settings
+ * that would run without HTTPS, so misconfiguration surfaces at startup.
+ *
+ * @param env - Process environment to read.
+ * @returns Validated configuration with parsed byte budgets and derived values.
+ */
 export function readConfig(env: NodeJS.ProcessEnv) {
   const value = envSchema.parse(env);
   const catalogQueryBytes = BigInt(value.CATALOG_QUERY_MAX_BYTES);

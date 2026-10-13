@@ -8,6 +8,14 @@ const statusLabels = {
   failed: "Failed",
 };
 
+/**
+ * Renders the live activity list for an in-progress turn.
+ *
+ * @param props - Component props.
+ * @param props.activities - Activities recorded for the turn.
+ * @param props.progress - Latest human-readable progress message.
+ * @returns The rendered activity list.
+ */
 export function ActivityList({
   activities,
   progress,

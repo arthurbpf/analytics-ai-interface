@@ -4,6 +4,11 @@ export const turnId = "22222222-2222-4222-8222-222222222222";
 export const draftId = "33333333-3333-4333-8333-333333333333";
 export const resultRef = "44444444-4444-4444-8444-444444444444";
 export const timestamp = "2026-10-12T12:00:00.000Z";
+/**
+ * Builds an empty session history for tests.
+ *
+ * @returns A history with one titled session and no turns or messages.
+ */
 export function history(): SessionHistory {
   return {
     session: {
@@ -19,6 +24,12 @@ export function history(): SessionHistory {
     messages: [],
   };
 }
+/**
+ * Builds a published chart fixture of the requested type.
+ *
+ * @param type - Chart type to construct.
+ * @returns A published chart with fixed data and no caveats.
+ */
 export function chart(type: ChartSpec["type"] = "bar"): PublishedChart {
   const base = { title: "Purchases by device", resultRef };
   let spec: ChartSpec;

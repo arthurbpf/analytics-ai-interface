@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "oxc", "unicorn", "import", "react", "jsx-a11y"],
+  "plugins": ["typescript", "oxc", "unicorn", "import", "react", "jsx-a11y", "jsdoc"],
+  "jsPlugins": [{ "name": "jsdoc-js", "specifier": "eslint-plugin-jsdoc" }],
   "categories": {
     "correctness": "error",
     "suspicious": "error"
@@ -63,7 +64,58 @@
     "react/jsx-key": "error",
     "react/no-array-index-key": "error",
     "react/no-danger": "error",
-    "react/button-has-type": "error"
+    "react/button-has-type": "error",
+    "eslint/complexity": ["error", 20],
+    "eslint/max-depth": ["error", 4],
+    "eslint/max-nested-callbacks": ["error", 3],
+    "eslint/max-params": ["error", 5],
+    "eslint/max-statements": ["error", 40],
+    "eslint/max-lines-per-function": [
+      "error",
+      {
+        "max": 150,
+        "skipBlankLines": true,
+        "skipComments": true
+      }
+    ],
+    "eslint/max-lines": [
+      "error",
+      {
+        "max": 500,
+        "skipBlankLines": true,
+        "skipComments": true
+      }
+    ],
+    "eslint/max-classes-per-file": ["error", 2],
+    "jsdoc-js/require-jsdoc": [
+      "error",
+      {
+        "publicOnly": false,
+        "enableFixer": false,
+        "minLineCount": 2,
+        "require": {
+          "FunctionDeclaration": true,
+          "MethodDefinition": true,
+          "ClassDeclaration": true,
+          "ArrowFunctionExpression": false,
+          "FunctionExpression": false
+        },
+        "contexts": [
+          "VariableDeclarator > ArrowFunctionExpression",
+          "VariableDeclarator > FunctionExpression",
+          "PropertyDefinition > ArrowFunctionExpression",
+          "PropertyDefinition > FunctionExpression"
+        ]
+      }
+    ],
+    "jsdoc/check-tag-names": "error",
+    "jsdoc/empty-tags": "error",
+    "jsdoc/no-blank-blocks": "error",
+    "jsdoc/no-defaults": "error",
+    "jsdoc/require-param": "error",
+    "jsdoc/require-param-description": "error",
+    "jsdoc/require-returns": "error",
+    "jsdoc/require-returns-description": "error"
   },
   "overrides": [
     {
@@ -85,6 +137,95 @@
       "files": ["apps/api/**/*.ts"],
       "rules": {
         "oxc/no-async-endpoint-handlers": "off"
+      }
+    },
+    {
+      "files": [
+        "apps/web/src/components/ui/**",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "apps/api/tests/**",
+        "**/*.config.ts"
+      ],
+      "rules": {
+        "eslint/complexity": "off",
+        "eslint/max-depth": "off",
+        "eslint/max-nested-callbacks": "off",
+        "eslint/max-params": "off",
+        "eslint/max-statements": "off",
+        "eslint/max-lines-per-function": "off",
+        "eslint/max-lines": "off",
+        "eslint/max-classes-per-file": "off",
+        "jsdoc-js/require-jsdoc": "off",
+        "jsdoc/require-param": "off",
+        "jsdoc/require-param-description": "off",
+        "jsdoc/require-returns": "off",
+        "jsdoc/require-returns-description": "off"
+      }
+    },
+    {
+      "files": ["apps/api/src/agent/loop.ts"],
+      "rules": {
+        "eslint/complexity": "off",
+        "eslint/max-statements": "off",
+        "eslint/max-depth": "off",
+        "eslint/max-lines-per-function": "off",
+        "eslint/max-lines": "off"
+      }
+    },
+    {
+      "files": ["apps/api/src/analytics/bigquery.ts"],
+      "rules": {
+        "eslint/complexity": "off",
+        "eslint/max-statements": "off",
+        "eslint/max-lines-per-function": "off"
+      }
+    },
+    {
+      "files": ["apps/api/src/analytics/catalog.ts"],
+      "rules": {
+        "eslint/complexity": "off",
+        "eslint/max-statements": "off",
+        "eslint/max-lines-per-function": "off"
+      }
+    },
+    {
+      "files": ["apps/api/src/llm/openrouter.ts"],
+      "rules": {
+        "eslint/complexity": "off",
+        "eslint/max-statements": "off",
+        "eslint/max-lines-per-function": "off",
+        "eslint/max-depth": "off"
+      }
+    },
+    {
+      "files": ["apps/api/src/app.ts"],
+      "rules": {
+        "eslint/max-lines-per-function": "off"
+      }
+    },
+    {
+      "files": ["apps/api/src/agent/review.ts"],
+      "rules": {
+        "eslint/max-params": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/chat/controller.ts"],
+      "rules": {
+        "eslint/complexity": "off",
+        "eslint/max-statements": "off",
+        "eslint/max-depth": "off",
+        "eslint/max-lines": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/chat/page.tsx"],
+      "rules": {
+        "eslint/complexity": "off",
+        "eslint/max-lines-per-function": "off",
+        "eslint/max-lines": "off"
       }
     }
   ]

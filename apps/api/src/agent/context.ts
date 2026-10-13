@@ -2,6 +2,17 @@ import type { ModelMessage } from "../llm/messages.ts";
 import type { AgentHistory } from "../db/history.ts";
 import { limits } from "../config.ts";
 
+/**
+ * Builds the bounded model context for the active turn.
+ *
+ * Recent completed turns are prepended whole until the byte ceiling is reached, so the
+ * model sees as much prior conversation as fits without exceeding the context budget.
+ *
+ * @param history - Stored turns and messages for the session.
+ * @param activeTurnId - Turn whose in-progress messages seed the context.
+ * @param overhead - Bytes already reserved for the system prompt and tool definitions.
+ * @returns The ordered model messages to send, oldest first.
+ */
 export function buildContext(
   history: AgentHistory,
   activeTurnId: string,

@@ -126,11 +126,23 @@ const displayOverrides: Record<string, ColumnDisplay> = {
   recorded_item_revenue: { label: "Recorded item revenue", format: "usd" },
   conversion_rate: { label: "Session conversion rate", format: "percentage" },
   add_to_cart_rate: { label: "Add-to-cart rate", format: "percentage" },
-  checkout_abandonment: { label: "Observed checkout abandonment", format: "percentage" },
+  checkout_abandonment: {
+    label: "Observed checkout abandonment",
+    format: "percentage",
+  },
   engagement_rate: { label: "Engagement rate", format: "percentage" },
-  avg_observed_session_duration: { label: "Average observed session duration", format: "seconds" },
-  avg_recorded_engagement_time: { label: "Average recorded engagement time", format: "seconds" },
-  items_per_purchase: { label: "Recorded items per purchase", format: "decimal" },
+  avg_observed_session_duration: {
+    label: "Average observed session duration",
+    format: "seconds",
+  },
+  avg_recorded_engagement_time: {
+    label: "Average recorded engagement time",
+    format: "seconds",
+  },
+  items_per_purchase: {
+    label: "Recorded items per purchase",
+    format: "decimal",
+  },
   new_vs_returning_sessions: { label: "First vs later observed sessions" },
   purchasers_by_purchasing_session_count: {
     label: "Purchasers by observed purchasing-session count",
@@ -141,12 +153,24 @@ const displayOverrides: Record<string, ColumnDisplay> = {
   day: { label: "Date" },
   week: { label: "Week starting" },
 };
+/**
+ * Extracts the aliased output column names from a metric's SQL.
+ *
+ * @param sql - Metric SQL containing `... AS alias` selectors.
+ * @returns The aliases in declaration order.
+ */
 function outputColumns(sql: string): string[] {
   return [...sql.matchAll(/ AS (\w+)/g)].flatMap((match) => (match[1] ? [match[1]] : []));
 }
 const numericOutputs = new Set(
   Object.values(aggregates).flatMap((value) => outputColumns(value.sql)),
 );
+/**
+ * Resolves the display metadata for a catalog column.
+ *
+ * @param name - Column name to look up.
+ * @returns The configured display override, or a default label and numeric format.
+ */
 export function catalogColumnDisplay(name: string): ColumnDisplay {
   return (
     displayOverrides[name] ?? {
@@ -155,6 +179,12 @@ export function catalogColumnDisplay(name: string): ColumnDisplay {
     }
   );
 }
+/**
+ * Returns the human-readable label for a catalog metric or column.
+ *
+ * @param name - Metric or column identifier.
+ * @returns The configured display label, falling back to a title-cased name.
+ */
 export function metricLabel(name: string): string {
   return catalogColumnDisplay(name).label ?? columnLabel(name);
 }
@@ -229,6 +259,16 @@ export interface BuiltMetric {
   definition: string;
   requiredCaveats: string[];
 }
+/**
+ * Builds the parameterized SQL and metadata for a catalog metric request.
+ *
+ * Validates the requested dimensions, filters, and ranking against the metric's allowed
+ * set, then assembles the SQL, bound parameters, and required caveats.
+ *
+ * @param value - Untrusted metric request arguments.
+ * @returns The built metric ready for execution.
+ * @throws When the metric or a requested dimension, filter, or ranking is invalid.
+ */
 export function buildMetric(value: unknown): BuiltMetric {
   const args = metricRequestSchema.parse(value);
   const info = catalog[args.metric];

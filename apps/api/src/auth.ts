@@ -7,6 +7,12 @@ import { authSessions, oauthAttempts, sessions, users } from "./db/schema.ts";
 
 export const authLifetimeMs = 30 * 24 * 60 * 60 * 1000;
 export const randomToken = () => randomBytes(32).toString("base64url");
+/**
+ * Hashes a credential token for storage and comparison.
+ *
+ * @param token - Raw credential token.
+ * @returns The SHA-256 hex digest of the token.
+ */
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 export type Authenticated = { identity: Identity; tokenHash: string };
 export interface GoogleLogin {
@@ -17,13 +23,36 @@ export interface GoogleLogin {
     nonce: string,
   ): Promise<{ subject: string; name: string | null; email: string | null }>;
 }
+/**
+ * Google OAuth client using authorization code flow with PKCE.
+ */
 export class GoogleOAuth implements GoogleLogin {
   private readonly client: OAuth2Client;
   private readonly clientId: string;
+
+  /**
+   * Creates a Google OAuth client.
+   *
+   * @param clientId - Google OAuth client id.
+   * @param secret - Google OAuth client secret.
+   * @param redirectUri - OAuth redirect URI registered with Google.
+   */
   constructor(clientId: string, secret: string, redirectUri: string) {
     this.clientId = clientId;
-    this.client = new OAuth2Client({ clientId, clientSecret: secret, redirectUri });
+    this.client = new OAuth2Client({
+      clientId,
+      clientSecret: secret,
+      redirectUri,
+    });
   }
+
+  /**
+   * Builds the Google authorization URL and a matching PKCE verifier.
+   *
+   * @param state - Opaque state value to round-trip through Google.
+   * @param nonce - Nonce to bind the resulting ID token.
+   * @returns The authorization URL and PKCE verifier.
+   */
   async authorization(state: string, nonce: string) {
     const codes = await this.client.generateCodeVerifierAsync();
     return {
@@ -37,8 +66,20 @@ export class GoogleOAuth implements GoogleLogin {
       }),
     };
   }
+
+  /**
+   * Exchanges an authorization code and verifies the returned identity.
+   *
+   * @param code - Authorization code from Google.
+   * @param verifier - PKCE verifier for the attempt.
+   * @param nonce - Nonce that must match the ID token.
+   * @returns The verified subject, name, and email.
+   */
   async verify(code: string, verifier: string, nonce: string) {
-    const { tokens } = await this.client.getToken({ code, codeVerifier: verifier });
+    const { tokens } = await this.client.getToken({
+      code,
+      codeVerifier: verifier,
+    });
     if (!tokens.id_token) {
       throw new Error("Google did not return an ID token");
     }
@@ -50,14 +91,34 @@ export class GoogleOAuth implements GoogleLogin {
     if (!payload || payload.nonce !== nonce || !payload.sub) {
       throw new Error("Invalid Google identity");
     }
-    return { subject: payload.sub, name: payload.name ?? null, email: payload.email ?? null };
+    return {
+      subject: payload.sub,
+      name: payload.name ?? null,
+      email: payload.email ?? null,
+    };
   }
 }
+/**
+ * Account and credential operations backed by the store's database.
+ */
 export class AuthStore {
   private readonly store: Store;
+
+  /**
+   * Creates an auth store.
+   *
+   * @param store - Store providing database access.
+   */
   constructor(store: Store) {
     this.store = store;
   }
+
+  /**
+   * Resolves an active credential token to its identity.
+   *
+   * @param token - Presented credential token, if any.
+   * @returns The authenticated identity and token hash, or null when unauthenticated.
+   */
   async authenticate(token: string | undefined): Promise<Authenticated | null> {
     if (!token) {
       return null;
@@ -76,6 +137,12 @@ export class AuthStore {
       );
     return row ? { identity: identitySchema.parse(row.user), tokenHash } : null;
   }
+
+  /**
+   * Creates a guest account and credential.
+   *
+   * @returns The new credential token and its identity.
+   */
   async guest() {
     const token = randomToken();
     const identity = await this.store.db.transaction(async (tx) => {
@@ -92,12 +159,26 @@ export class AuthStore {
     });
     return { token, identity };
   }
+
+  /**
+   * Revokes a credential so it can no longer authenticate.
+   *
+   * @param tokenHash - Hash of the credential to revoke.
+   */
   async revoke(tokenHash: string) {
     await this.store.db
       .update(authSessions)
       .set({ revokedAt: new Date() })
       .where(eq(authSessions.tokenHash, tokenHash));
   }
+
+  /**
+   * Begins a Google login attempt, staging its PKCE and state values.
+   *
+   * @param google - Google client used to build the authorization URL.
+   * @param current - Currently authenticated identity, if any.
+   * @returns The attempt token and Google authorization URL.
+   */
   async begin(google: GoogleLogin, current: Authenticated | null) {
     const token = randomToken();
     const state = randomToken();
@@ -113,6 +194,18 @@ export class AuthStore {
     });
     return { token, url };
   }
+
+  /**
+   * Completes a Google login, transferring a guest's sessions to the account.
+   *
+   * @param google - Google client used to exchange the code.
+   * @param attemptToken - Staged attempt token from the callback cookie.
+   * @param state - State value returned by Google.
+   * @param code - Authorization code returned by Google.
+   * @param current - Currently authenticated identity, if any.
+   * @returns The new credential token and identity.
+   * @throws When the attempt cannot be verified.
+   */
   async login(
     google: GoogleLogin,
     attemptToken: string | undefined,

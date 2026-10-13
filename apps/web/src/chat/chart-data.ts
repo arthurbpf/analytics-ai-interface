@@ -1,12 +1,24 @@
 import { columnLabel, type ChartSpec, type ResultData } from "@analytics/contracts";
 import { formatCell } from "./display.ts";
+/**
+ * Transforms result rows into the series and row shape a chart renders.
+ *
+ * Detects duplicate x/series pairs, which stacked bars cannot represent faithfully.
+ *
+ * @param spec - Bar, line, or stacked-bar chart specification.
+ * @param data - Result data to plot.
+ * @returns Row and series data, plus a duplicate flag when the shape is unrepresentable.
+ */
 export function plotData(
   spec: Extract<ChartSpec, { type: "bar" | "line" | "stacked_bar" }>,
   data: ResultData,
 ) {
   if (spec.type !== "stacked_bar") {
     return {
-      rows: data.rows.map((row) => ({ x: row[spec.x] ?? null, s0: row[spec.y] ?? null })),
+      rows: data.rows.map((row) => ({
+        x: row[spec.x] ?? null,
+        s0: row[spec.y] ?? null,
+      })),
       series: [
         {
           key: "s0",

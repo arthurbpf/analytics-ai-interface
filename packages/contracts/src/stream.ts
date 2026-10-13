@@ -14,22 +14,37 @@ export type Activity = z.infer<typeof activitySchema>;
 export const streamEventSchema = z.discriminatedUnion("type", [
   eventBase.extend({ type: z.literal("turn_started") }),
   eventBase.extend({ type: z.literal("activity"), activity: activitySchema }),
-  eventBase.extend({ type: z.literal("session_updated"), session: sessionSchema }),
+  eventBase.extend({
+    type: z.literal("session_updated"),
+    session: sessionSchema,
+  }),
   eventBase.extend({
     type: z.literal("progress"),
     stage: z.enum(["thinking", "querying", "charting", "composing"]),
     message: z.string(),
   }),
-  eventBase.extend({ type: z.literal("chart_ready"), chart: publishedChartSchema }),
+  eventBase.extend({
+    type: z.literal("chart_ready"),
+    chart: publishedChartSchema,
+  }),
   eventBase.extend({ type: z.literal("analysis_started"), draftId: idSchema }),
   eventBase.extend({
     type: z.literal("analysis_delta"),
     draftId: idSchema,
     delta: z.string().max(16000),
   }),
-  eventBase.extend({ type: z.literal("analysis_discarded"), draftId: idSchema }),
-  eventBase.extend({ type: z.literal("analysis_ready"), analysis: analysisSchema }),
-  eventBase.extend({ type: z.literal("clarification_ready"), clarification: clarificationSchema }),
+  eventBase.extend({
+    type: z.literal("analysis_discarded"),
+    draftId: idSchema,
+  }),
+  eventBase.extend({
+    type: z.literal("analysis_ready"),
+    analysis: analysisSchema,
+  }),
+  eventBase.extend({
+    type: z.literal("clarification_ready"),
+    clarification: clarificationSchema,
+  }),
   eventBase.extend({
     type: z.literal("turn_finished"),
     status: terminalStatusSchema,
@@ -39,6 +54,15 @@ export const streamEventSchema = z.discriminatedUnion("type", [
 export type StreamEvent = z.infer<typeof streamEventSchema>;
 
 // Shared framing decoder for fetch/ReadableStream consumers. No vendor or renderer dependencies.
+/**
+ * Decodes a UTF-8 SSE byte stream into validated stream events.
+ *
+ * Frames are split on blank lines; heartbeat comments are ignored, and a truncated final
+ * frame is rejected rather than silently dropped.
+ *
+ * @param stream - Byte stream carrying `data:` framed events.
+ * @yields Each parsed and schema-validated stream event.
+ */
 export async function* readEvents(stream: ReadableStream<Uint8Array>): AsyncGenerator<StreamEvent> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();

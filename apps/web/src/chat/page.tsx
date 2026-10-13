@@ -35,6 +35,13 @@ import { Markdown } from "./markdown.tsx";
 import { storageKey } from "./storage.ts";
 import { ActivityList } from "./activity.tsx";
 
+/**
+ * Renders a clarification request and its questions.
+ *
+ * @param props - Component props.
+ * @param props.clarification - Clarification to display.
+ * @returns The rendered clarification.
+ */
 function ClarificationView({ clarification }: { clarification: Clarification }) {
   return (
     <div className="space-y-4">
@@ -47,6 +54,13 @@ function ClarificationView({ clarification }: { clarification: Clarification }) 
     </div>
   );
 }
+/**
+ * Renders an analysis narrative with its deduplicated caveats.
+ *
+ * @param props - Component props.
+ * @param props.analysis - Analysis to display.
+ * @returns The rendered analysis.
+ */
 function AnalysisView({ analysis }: { analysis: Analysis }) {
   return (
     <div className="space-y-4">
@@ -66,6 +80,14 @@ function AnalysisView({ analysis }: { analysis: Analysis }) {
     </div>
   );
 }
+/**
+ * Renders the session list sidebar and its selection controls.
+ *
+ * @param props - Component props.
+ * @param props.controller - Controller providing session state.
+ * @param props.choose - Callback that selects a session.
+ * @returns The rendered sidebar.
+ */
 function SessionSidebar({
   controller,
   choose,
@@ -75,6 +97,11 @@ function SessionSidebar({
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const { setOpenMobile } = useSidebar();
+  /**
+   * Selects a session and closes the mobile sidebar.
+   *
+   * @param id - Session id to select, or null for a new analysis.
+   */
   const select = (id: string | null) => {
     choose(id);
     setOpenMobile(false);
@@ -144,6 +171,11 @@ function SessionSidebar({
     </Sidebar>
   );
 }
+/**
+ * Renders the full chat experience: sidebar, transcript, composer, and charts.
+ *
+ * @returns The rendered chat page.
+ */
 export function ChatPage() {
   const { session } = useSearch({ from: "/" });
   const navigate = useNavigate({ from: "/" });
@@ -166,6 +198,11 @@ export function ChatPage() {
   const disabled = Boolean(active || state.creating || state.loading || hasRunningTurn);
   const label =
     state.index.sessions.find((entry) => entry.id === state.selected)?.label ?? "New analysis";
+  /**
+   * Selects a session and updates the URL query.
+   *
+   * @param id - Session id to select, or null for a new analysis.
+   */
   const choose = (id: string | null) => {
     setInput("");
     nearBottom.current = true;
@@ -244,6 +281,11 @@ export function ChatPage() {
     }
   }, [navigate, session, state.selected, state.responses]);
   useEffect(() => {
+    /**
+     * Reloads preferences when another tab changes shared storage.
+     *
+     * @param event - Storage event from the browser.
+     */
     const synchronize = (event: StorageEvent) => {
       if (event.key === storageKey || event.key === null) {
         controller.synchronize();
@@ -267,6 +309,11 @@ export function ChatPage() {
       element.scrollTop = element.scrollHeight;
     }
   }, [history, active]);
+  /**
+   * Submits the composer input when it is non-empty and the page is idle.
+   *
+   * @param event - Optional form submit event to prevent default on.
+   */
   const send = (event?: FormEvent) => {
     event?.preventDefault();
     if (disabled || !input.trim() || input.trim().length > 8000) {

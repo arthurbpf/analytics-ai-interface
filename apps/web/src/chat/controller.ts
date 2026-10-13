@@ -39,6 +39,12 @@ export interface ChatState {
   error: string | null;
   warning: string | null;
 }
+/**
+ * Client-side controller owning chat state, streaming turns, and persistence.
+ *
+ * Exposes an immutable snapshot for React and coordinates identity, session lists,
+ * in-flight responses, and cross-tab synchronization.
+ */
 export class ChatController {
   private readonly api: ChatApi;
   private listeners = new Set<() => void>();
@@ -49,6 +55,11 @@ export class ChatController {
   private poll: ReturnType<typeof setTimeout> | undefined;
   private disposed = false;
   private state: ChatState;
+  /**
+   * Creates a controller over an API client.
+   *
+   * @param api - API client used for all requests.
+   */
   constructor(api: ChatApi = chatApi) {
     this.api = api;
     const { index, warning } = readIndex();
@@ -65,23 +76,49 @@ export class ChatController {
       error: null,
     };
   }
+  /**
+   * Returns the current state snapshot for external store consumers.
+   *
+   * @returns The current chat state.
+   */
   getSnapshot = () => this.state;
+  /**
+   * Registers a state listener.
+   *
+   * @param listener - Callback invoked when state changes.
+   * @returns A function that removes the listener.
+   */
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
     };
   };
+  /**
+   * Merges a partial patch into the state and notifies subscribers.
+   *
+   * @param patch - Fields to merge into the current state.
+   */
   private update(patch: Partial<ChatState>) {
     this.state = { ...this.state, ...patch };
     for (const listener of this.listeners) {
       listener();
     }
   }
+  /**
+   * Persists an index and surfaces a warning when storage is unavailable.
+   *
+   * @param index - Index to persist.
+   */
   private save(index: SessionIndex) {
     const warning = writeIndex(index);
     this.update({ index, ...(warning ? { warning } : {}) });
   }
+  /**
+   * Aborts in-flight work and resets state for a new identity.
+   *
+   * @param identity - Identity to reset to, or null for signed out.
+   */
   private reset(identity: Identity | null) {
     this.epoch++;
     this.selection++;
@@ -94,7 +131,11 @@ export class ChatController {
     const index =
       saved.index.identityId === identity?.id
         ? saved.index
-        : { ...emptyIndex, identityId: identity?.id ?? null, sidebarOpen: saved.index.sidebarOpen };
+        : {
+            ...emptyIndex,
+            identityId: identity?.id ?? null,
+            sidebarOpen: saved.index.sidebarOpen,
+          };
     this.update({
       identity,
       index,
@@ -106,6 +147,11 @@ export class ChatController {
       error: null,
     });
   }
+  /**
+   * Records an error, resetting the session when the credential has expired.
+   *
+   * @param error - Error to report.
+   */
   private report(error: unknown) {
     if (this.disposed) {
       return;
@@ -113,21 +159,37 @@ export class ChatController {
     if (error instanceof ApiFailure && error.status === 401) {
       this.reset(null);
     }
-    this.update({ error: error instanceof Error ? error.message : "Request could not complete." });
+    this.update({
+      error: error instanceof Error ? error.message : "Request could not complete.",
+    });
   }
+  /**
+   * Runs a task, routing any rejection to the error reporter.
+   *
+   * @param task - Task to run in the background.
+   */
   private run(task: Promise<void>) {
     void task.then(
       () => {},
       (error: unknown) => this.report(error),
     );
   }
+  /**
+   * Marks the controller live and loads the initial identity and sessions.
+   */
   initialize = () => {
     this.disposed = false;
     this.run(this.refresh());
   };
+  /**
+   * Reloads identity and sessions, used when another tab changes storage.
+   */
   synchronize = () => {
     this.run(this.refresh());
   };
+  /**
+   * Loads the current identity and session list, resetting on identity change.
+   */
   private async refresh() {
     const revision = ++this.refreshRevision;
     try {
@@ -150,7 +212,10 @@ export class ChatController {
       this.update({
         index: {
           ...this.state.index,
-          sessions: sessions.map((session) => ({ ...session, label: session.title })),
+          sessions: sessions.map((session) => ({
+            ...session,
+            label: session.title,
+          })),
         },
       });
       this.schedulePoll();
@@ -160,34 +225,63 @@ export class ChatController {
       }
     }
   }
+  /**
+   * Starts a guest session.
+   */
   guest = () => {
     this.run(this.startGuest());
   };
+  /**
+   * Creates a guest identity and reloads the session list.
+   */
   private async startGuest() {
     this.update({ error: null });
     await this.api.guest();
     await this.refresh();
   }
+  /**
+   * Signs out and clears session state.
+   */
   logout = () => {
     this.run(this.endIdentity());
   };
+  /**
+   * Revokes the credential, clears state, and persists the signed-out index.
+   */
   private async endIdentity() {
     await this.api.logout();
     this.refreshRevision++;
     this.reset(null);
     this.save(this.state.index);
   }
+  /**
+   * Disposes the controller, aborting work and clearing state.
+   */
   dispose = () => {
     this.disposed = true;
     this.refreshRevision++;
     this.reset(null);
   };
+  /**
+   * Persists the sidebar open state.
+   *
+   * @param sidebarOpen - Whether the sidebar is open.
+   */
   setSidebar = (sidebarOpen: boolean) => {
     this.save({ ...this.state.index, sidebarOpen });
   };
+  /**
+   * Selects a session and loads its history.
+   *
+   * @param id - Session id to select, or null for a new analysis.
+   */
   select = (id: string | null) => {
     this.selection++;
-    this.update({ selected: id, loading: Boolean(id && !this.state.histories[id]), error: null });
+    this.update({
+      selected: id,
+      loading: Boolean(id && !this.state.histories[id]),
+      error: null,
+    });
     if (this.state.identity) {
       this.save({ ...this.state.index, selected: id });
     }
@@ -195,6 +289,9 @@ export class ChatController {
       this.run(this.load(id, this.epoch));
     }
   };
+  /**
+   * Reloads the selected session and the session list.
+   */
   reload = () => {
     this.update({ error: null });
     if (this.state.selected && this.state.identity) {
@@ -202,6 +299,9 @@ export class ChatController {
     }
     this.run(this.refresh());
   };
+  /**
+   * Schedules the next poll while any session has pending or running work.
+   */
   private schedulePoll() {
     clearTimeout(this.poll);
     if (this.disposed || !this.state.identity) {
@@ -218,6 +318,9 @@ export class ChatController {
       this.poll = setTimeout(() => this.run(this.pollSaved()), 2000);
     }
   }
+  /**
+   * Refreshes the index and reloads histories for sessions with running turns.
+   */
   private async pollSaved() {
     await this.refresh();
     const epoch = this.epoch;
@@ -239,6 +342,12 @@ export class ChatController {
     );
     this.schedulePoll();
   }
+  /**
+   * Loads a session's saved history, ignoring responses for stale epochs.
+   *
+   * @param id - Session id to load.
+   * @param epoch - Identity epoch that must still be current.
+   */
   private async load(id: string, epoch: number) {
     const revision = (this.revisions.get(id) ?? 0) + 1;
     this.revisions.set(id, revision);
@@ -277,6 +386,11 @@ export class ChatController {
       throw error;
     }
   }
+  /**
+   * Sends a prompt, creating a session first when none is selected.
+   *
+   * @param text - User prompt to submit.
+   */
   send = (text: string) => {
     const id = this.state.selected;
     const history = id ? this.state.histories[id] : undefined;
@@ -314,17 +428,29 @@ export class ChatController {
       finished: false,
     };
     this.update({
-      responses: { ...this.state.responses, [id ?? active.clientTurnId]: active },
+      responses: {
+        ...this.state.responses,
+        [id ?? active.clientTurnId]: active,
+      },
       creating: !id,
       error: null,
     });
     this.run(this.submit(active, this.epoch, this.selection));
   };
+  /**
+   * Aborts the selected session's in-flight response.
+   */
   stop = () => {
     if (this.state.selected) {
       this.state.responses[this.state.selected]?.controller.abort();
     }
   };
+  /**
+   * Applies one stream event to the active response being assembled.
+   *
+   * @param active - In-progress response the event belongs to.
+   * @param event - Stream event to apply.
+   */
   private event(active: ActiveResponse, event: StreamEvent) {
     if (event.type !== "turn_started" && active.turnId !== event.turnId) {
       throw new Error("Stream contained a different turn.");
@@ -393,9 +519,19 @@ export class ChatController {
         break;
     }
     if (active.sessionId) {
-      this.update({ responses: { ...this.state.responses, [active.sessionId]: { ...active } } });
+      this.update({
+        responses: {
+          ...this.state.responses,
+          [active.sessionId]: { ...active },
+        },
+      });
     }
   }
+  /**
+   * Merges a completed response into cached history when reloading it failed.
+   *
+   * @param active - Finished response to retain.
+   */
   private retainPublished(active: ActiveResponse) {
     const id = active.sessionId;
     const turnId = active.turnId;
@@ -417,7 +553,11 @@ export class ChatController {
           (message) => message.content.kind === "chart" && message.content.chart.id === chart.id,
         )
       ) {
-        messages.push({ id: chart.id, turnId, content: { kind: "chart", chart } });
+        messages.push({
+          id: chart.id,
+          turnId,
+          content: { kind: "chart", chart },
+        });
       }
     }
     if (
@@ -442,8 +582,17 @@ export class ChatController {
         content: { kind: "clarification", clarification: active.clarification },
       });
     }
-    this.update({ histories: { ...this.state.histories, [id]: { ...cached, messages } } });
+    this.update({
+      histories: { ...this.state.histories, [id]: { ...cached, messages } },
+    });
   }
+  /**
+   * Streams a turn to completion, creating the session first when needed.
+   *
+   * @param active - Response being submitted.
+   * @param epoch - Identity epoch that must still be current.
+   * @param selection - Selection counter guarding against stale submissions.
+   */
   private async submit(active: ActiveResponse, epoch: number, selection: number) {
     let failure: string | null = null;
     try {
@@ -461,7 +610,11 @@ export class ChatController {
           creating: false,
           histories: {
             ...this.state.histories,
-            [session.id]: historySchema.parse({ session, turns: [], messages: [] }),
+            [session.id]: historySchema.parse({
+              session,
+              turns: [],
+              messages: [],
+            }),
           },
           index: remember(this.state.index, session),
         });
@@ -507,7 +660,10 @@ export class ChatController {
       if (!this.disposed && epoch === this.epoch) {
         if (active.sessionId) {
           this.update({
-            responses: { ...this.state.responses, [active.sessionId]: { ...active } },
+            responses: {
+              ...this.state.responses,
+              [active.sessionId]: { ...active },
+            },
           });
           try {
             await this.load(active.sessionId, epoch);
