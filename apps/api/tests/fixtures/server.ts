@@ -44,14 +44,18 @@ const model: ModelClient = {
   complete: async (system, messages, tools, signal, update) => {
     let prompt = "";
     for (const message of messages) {
-      if (message.role === "user") {
+      if (message.role === "user" && !message.content.startsWith("Application context —")) {
         prompt = message.content;
       }
     }
     if (prompt === "Format revenue with early activity") {
-      const last = messages.at(-1);
+      const last = messages.filter((message) => message.role === "tool").at(-1);
       if (last?.role !== "tool") {
-        await update?.({ index: 0, name: "run_sql", arguments: "{" });
+        await update?.onToolCallUpdate?.({
+          index: 0,
+          name: "run_sql",
+          arguments: "{",
+        });
         await setTimeout(2000, undefined, { signal });
         return call("run_sql", {
           sql: revenueSql,
@@ -82,11 +86,15 @@ const model: ModelClient = {
       if (!presentation) {
         throw new Error("Missing revenue presentation");
       }
-      await update?.({ index: 0, name: presentation.name, arguments: presentation.arguments });
+      await update?.onToolCallUpdate?.({
+        index: 0,
+        name: presentation.name,
+        arguments: presentation.arguments,
+      });
       return response;
     }
     if (prompt === "Clarify customer frequency") {
-      await update?.({
+      await update?.onToolCallUpdate?.({
         index: 0,
         name: "present_analysis",
         arguments: '{"narrative":"Discarded clarification draft"}',
@@ -97,7 +105,7 @@ const model: ModelClient = {
         questions: ["Purchase events or purchasing sessions?"],
       });
     }
-    const last = messages.at(-1);
+    const last = messages.filter((message) => message.role === "tool").at(-1);
     if (last?.role === "tool" && last.content.includes('"issues":')) {
       const previous = messages
         .filter(
@@ -128,7 +136,13 @@ const model: ModelClient = {
       const base = { title: original.title, resultRef: original.resultRef };
       let spec: ChartSpec;
       if (prompt.includes("stacked")) {
-        spec = { ...base, type: "stacked_bar", x: "device", y: "purchases", series: "device" };
+        spec = {
+          ...base,
+          type: "stacked_bar",
+          x: "device",
+          y: "purchases",
+          series: "device",
+        };
       } else if (prompt.includes("line")) {
         spec = { ...base, type: "line", x: "device", y: "purchases" };
       } else if (prompt.includes("table")) {
@@ -176,14 +190,18 @@ const model: ModelClient = {
     }
     const chunkSize = prompt.includes("Markdown") ? 120 : 12;
     for (let length = chunkSize; length < presentation.arguments.length; length += chunkSize) {
-      await update?.({
+      await update?.onToolCallUpdate?.({
         index: 0,
         name: presentation.name,
         arguments: presentation.arguments.slice(0, length),
       });
       await setTimeout(75, undefined, { signal });
     }
-    await update?.({ index: 0, name: presentation.name, arguments: presentation.arguments });
+    await update?.onToolCallUpdate?.({
+      index: 0,
+      name: presentation.name,
+      arguments: presentation.arguments,
+    });
     if (prompt.includes("Fail")) {
       throw new Error("Scripted model failure");
     }
@@ -202,13 +220,21 @@ reviewer.model = {
     const input = z
       .object({
         conversation: z.array(
-          z.object({ role: z.string(), content: z.string().nullable().optional() }),
+          z.object({
+            role: z.string(),
+            content: z.string().nullable().optional(),
+          }),
         ),
         candidate: analysisSchema,
       })
       .parse(raw);
     const prompt =
-      input.conversation.filter((message) => message.role === "user").at(-1)?.content ?? "";
+      input.conversation
+        .filter(
+          (message) =>
+            message.role === "user" && !message.content?.startsWith("Application context —"),
+        )
+        .at(-1)?.content ?? "";
     if (prompt.includes("Hold")) {
       await setTimeout(60000, undefined, { signal });
     }
@@ -219,7 +245,10 @@ reviewer.model = {
       return call("review_analysis", {
         approved: false,
         issues: [
-          { problem: "The count is unsupported", correction: "Use the saved purchase counts" },
+          {
+            problem: "The count is unsupported",
+            correction: "Use the saved purchase counts",
+          },
         ],
       });
     }

@@ -2,6 +2,8 @@ export interface ModelUsage {
   inputTokens: number | null;
   outputTokens: number | null;
   cost: number | null;
+  cachedTokens?: number | null;
+  cacheWriteTokens?: number | null;
 }
 
 export interface CallUsage extends ModelUsage {
@@ -19,7 +21,14 @@ export interface TurnUsage extends CallUsage {
  * @returns Usage with no calls and zero tokens and cost.
  */
 export function emptyUsage(): CallUsage {
-  return { modelCalls: 0, inputTokens: 0, outputTokens: 0, cost: 0 };
+  return {
+    modelCalls: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cost: 0,
+    cachedTokens: 0,
+    cacheWriteTokens: 0,
+  };
 }
 
 /**
@@ -32,8 +41,16 @@ export function emptyUsage(): CallUsage {
  * @param source - Usage to add.
  */
 export function addUsage(target: ModelUsage, source: ModelUsage) {
-  for (const key of ["inputTokens", "outputTokens", "cost"] as const) {
-    target[key] = target[key] === null || source[key] === null ? null : target[key] + source[key];
+  for (const key of [
+    "inputTokens",
+    "outputTokens",
+    "cost",
+    "cachedTokens",
+    "cacheWriteTokens",
+  ] as const) {
+    const left = target[key] ?? null;
+    const right = source[key] ?? null;
+    target[key] = left === null || right === null ? null : left + right;
   }
 }
 
@@ -43,5 +60,11 @@ export function addUsage(target: ModelUsage, source: ModelUsage) {
  * @returns Usage with null token and cost fields.
  */
 export function unknownUsage(): ModelUsage {
-  return { inputTokens: null, outputTokens: null, cost: null };
+  return {
+    inputTokens: null,
+    outputTokens: null,
+    cost: null,
+    cachedTokens: null,
+    cacheWriteTokens: null,
+  };
 }

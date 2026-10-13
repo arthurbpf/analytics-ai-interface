@@ -27,7 +27,12 @@ const candidate: Analysis = {
 };
 const rejection = {
   approved: false,
-  issues: [{ problem: "Purchase count is misstated", correction: "Use the saved count of 12" }],
+  issues: [
+    {
+      problem: "Purchase count is misstated",
+      correction: "Use the saved count of 12",
+    },
+  ],
 };
 
 function setup() {
@@ -68,7 +73,7 @@ it("reviews complete evidence and follow-up context before publishing selected c
     expect(tools.map((tool) => tool.function.name)).toEqual(["review_analysis"]);
     expect(JSON.stringify(messages)).toContain("Purchases by device");
     expect(JSON.stringify(messages)).toContain("mobile");
-    expect(JSON.stringify(messages)).toContain("chartSchema");
+    expect(_system).toContain("chartSchema");
     expect(JSON.stringify(messages)).toContain(sql);
     expect(state.events.some((event) => event.type === "chart_ready")).toBe(false);
     expect(
@@ -76,9 +81,15 @@ it("reviews complete evidence and follow-up context before publishing selected c
     ).toBe(true);
     return call("review_analysis", { approved: true, issues: [] });
   });
-  state.deps.reviewer = { model: { complete: review }, modelName: "review-model" };
+  state.deps.reviewer = {
+    model: { complete: review },
+    modelName: "review-model",
+  };
   expect((await state.run()).status).toBe("completed");
   expect(review).toHaveBeenCalledOnce();
+  expect(review.mock.calls[0]?.[4]?.sessionId).toBe(sessionId);
+  expect(review.mock.calls[0]?.[0]).toContain("definitions");
+  expect(review.mock.calls[0]?.[1][0]?.content).not.toContain('"definitions":');
   expect(displayHistory(state.history).messages.map((message) => message.content.kind)).toEqual([
     "user",
     "chart",
@@ -151,7 +162,7 @@ it("allows a repair query then restricts the last repair call to terminal tools"
         "request_clarification",
         "present_analysis",
       ]);
-      const last = messages.at(-1);
+      const last = messages.filter((message) => message.role === "tool").at(-1);
       if (last?.role !== "tool") {
         throw new Error("Missing query evidence");
       }
@@ -188,7 +199,11 @@ it("does not reset the SQL budget for repairs", async () => {
     complete: async (_system, messages) => {
       calls++;
       if (calls <= 5 || calls === 7) {
-        return call("run_sql", { sql, purpose: "Check", justification: "Fixture custom query" });
+        return call("run_sql", {
+          sql,
+          purpose: "Check",
+          justification: "Fixture custom query",
+        });
       }
       if (calls === 8) {
         expect(toolOutputs(messages).at(-1)).toContain("SQL submission budget");
@@ -252,7 +267,10 @@ it("permits clarification after rejection without another review or chart public
             questions: ["Sessions or users?"],
           }),
   };
-  state.deps.reviewer = { modelName: "review-model", model: { complete: review } };
+  state.deps.reviewer = {
+    modelName: "review-model",
+    model: { complete: review },
+  };
   expect((await state.run()).status).toBe("completed");
   expect(review).toHaveBeenCalledOnce();
   expect(state.events.some((event) => event.type === "clarification_ready")).toBe(true);
@@ -263,7 +281,11 @@ it.each([
     "missing verdict",
     () => ({
       ...call("review_analysis", {}),
-      message: { role: "assistant" as const, content: "Approved", toolCalls: [] },
+      message: {
+        role: "assistant" as const,
+        content: "Approved",
+        toolCalls: [],
+      },
     }),
   ],
   ["wrong tool", () => call("run_sql", {})],
@@ -291,8 +313,14 @@ it.each([
 ])("fails closed on %s and retains known provider usage", async (_name, response) => {
   const state = setup();
   const review = vi.fn(async () => response());
-  state.deps.reviewer = { modelName: "review-model", model: { complete: review } };
-  expect(await state.run()).toMatchObject({ status: "failed", error: { code: "review_failed" } });
+  state.deps.reviewer = {
+    modelName: "review-model",
+    model: { complete: review },
+  };
+  expect(await state.run()).toMatchObject({
+    status: "failed",
+    error: { code: "review_failed" },
+  });
   expect(review).toHaveBeenCalledOnce();
   expect(state.usage()?.reviewer?.inputTokens).toBe(10);
   expect(state.events.some((event) => event.type === "analysis_ready")).toBe(false);
@@ -303,8 +331,14 @@ it("retains unknown reviewer usage on provider failure without retrying", async 
   const review = vi.fn(async () => {
     throw new Error("Provider offline");
   });
-  state.deps.reviewer = { modelName: "review-model", model: { complete: review } };
-  expect(await state.run()).toMatchObject({ status: "failed", error: { code: "review_failed" } });
+  state.deps.reviewer = {
+    modelName: "review-model",
+    model: { complete: review },
+  };
+  expect(await state.run()).toMatchObject({
+    status: "failed",
+    error: { code: "review_failed" },
+  });
   expect(review).toHaveBeenCalledOnce();
   expect(state.usage()).toMatchObject({
     inputTokens: null,
@@ -314,7 +348,9 @@ it("retains unknown reviewer usage on provider failure without retrying", async 
   });
   expect(
     state.history.messages.find((message) => message.content.kind === "review")?.content,
-  ).toMatchObject({ review: { error: "provider_failed", usage: { inputTokens: null } } });
+  ).toMatchObject({
+    review: { error: "provider_failed", usage: { inputTokens: null } },
+  });
 });
 
 it("does not publish or retry when persisting an approved review fails", async () => {
@@ -327,7 +363,10 @@ it("does not publish or retry when persisting an approved review fails", async (
     await append(...args);
   };
   const review = vi.fn(async () => call("review_analysis", { approved: true, issues: [] }));
-  state.deps.reviewer = { modelName: "review-model", model: { complete: review } };
+  state.deps.reviewer = {
+    modelName: "review-model",
+    model: { complete: review },
+  };
   expect((await state.run()).status).toBe("failed");
   expect(review).toHaveBeenCalledOnce();
   expect(state.events.some((event) => event.type === "analysis_ready")).toBe(false);
@@ -369,8 +408,14 @@ it("fails review overflow without sending a preview or incurring a reviewer call
     complete: async () => call("present_analysis", { ...candidate, resultRefs: refs }),
   };
   const review = vi.fn(async () => call("review_analysis", { approved: true, issues: [] }));
-  state.deps.reviewer = { modelName: "review-model", model: { complete: review } };
-  expect(await state.run()).toMatchObject({ status: "failed", error: { code: "review_failed" } });
+  state.deps.reviewer = {
+    modelName: "review-model",
+    model: { complete: review },
+  };
+  expect(await state.run()).toMatchObject({
+    status: "failed",
+    error: { code: "review_failed" },
+  });
   expect(review).not.toHaveBeenCalled();
   expect(state.usage()?.reviewer?.modelCalls).toBe(0);
 });
@@ -401,7 +446,10 @@ it("can use all eight initial calls, two repairs and two reviews within twelve c
 it("skips review for explanations without query evidence", async () => {
   const state = setup();
   const review = vi.fn(async () => call("review_analysis", { approved: true, issues: [] }));
-  state.deps.reviewer = { modelName: "review-model", model: { complete: review } };
+  state.deps.reviewer = {
+    modelName: "review-model",
+    model: { complete: review },
+  };
   state.deps.model = {
     complete: async () =>
       call("present_analysis", {
@@ -432,7 +480,10 @@ it("skips review for a simple single-result catalog aggregate", async () => {
     },
   });
   const review = vi.fn(async () => call("review_analysis", { approved: true, issues: [] }));
-  state.deps.reviewer = { modelName: "review-model", model: { complete: review } };
+  state.deps.reviewer = {
+    modelName: "review-model",
+    model: { complete: review },
+  };
   expect((await state.run()).status).toBe("completed");
   expect(review).not.toHaveBeenCalled();
   expect(state.usage()?.reviewer?.modelCalls).toBe(0);
@@ -441,7 +492,10 @@ it("skips review for a simple single-result catalog aggregate", async () => {
 it("reviews a chart", async () => {
   const state = setup();
   const review = vi.fn(async () => call("review_analysis", { approved: true, issues: [] }));
-  state.deps.reviewer = { modelName: "review-model", model: { complete: review } };
+  state.deps.reviewer = {
+    modelName: "review-model",
+    model: { complete: review },
+  };
   state.deps.model = fixtureModel();
   expect((await state.run()).status).toBe("completed");
   expect(review).toHaveBeenCalledOnce();
@@ -469,7 +523,10 @@ it.each<[string, Partial<MetricRequest>]>([
     },
   });
   const review = vi.fn(async () => call("review_analysis", { approved: true, issues: [] }));
-  state.deps.reviewer = { modelName: "review-model", model: { complete: review } };
+  state.deps.reviewer = {
+    modelName: "review-model",
+    model: { complete: review },
+  };
   expect((await state.run()).status).toBe("completed");
   expect(review).toHaveBeenCalledOnce();
 });

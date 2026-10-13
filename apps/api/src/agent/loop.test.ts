@@ -31,6 +31,47 @@ function setup() {
   };
   return { ...state, deps, events, emit };
 }
+it("keeps analyst instructions stable and persists cache usage with session affinity", async () => {
+  const { deps, emit } = setup();
+  const scripted = fixtureModel();
+  const complete = vi.spyOn(deps.store, "complete");
+  const prompts: string[] = [];
+  deps.model = {
+    complete: async (system, messages, tools, signal, options) => {
+      prompts.push(system);
+      expect(options?.sessionId).toBe(sessionId);
+      expect(system).not.toContain("Prior saved results:");
+      expect(messages.at(-1)?.content).toContain("Application context");
+      const response = await scripted.complete(system, messages, tools, signal, options);
+      return {
+        ...response,
+        usage: { ...response.usage, cachedTokens: 100, cacheWriteTokens: 20 },
+      };
+    },
+  };
+  const reviewer = vi.fn(async () => ({
+    ...call("review_analysis", { approved: true, issues: [] }),
+    usage: {
+      inputTokens: 10,
+      outputTokens: 10,
+      cost: 0.001,
+      cachedTokens: 50,
+      cacheWriteTokens: 5,
+    },
+  }));
+  deps.reviewer = { modelName: "reviewer", model: { complete: reviewer } };
+  expect((await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).status).toBe(
+    "completed",
+  );
+  expect(prompts).toHaveLength(3);
+  expect(new Set(prompts).size).toBe(1);
+  expect(complete.mock.calls[0]?.[3]).toMatchObject({
+    cachedTokens: 350,
+    cacheWriteTokens: 65,
+    analyst: { cachedTokens: 300, cacheWriteTokens: 60 },
+    reviewer: { cachedTokens: 50, cacheWriteTokens: 5 },
+  });
+});
 it("persists and publishes a chart before the authoritative final answer", async () => {
   const { deps, events, emit, history, results } = setup();
   expect(await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).toEqual({
@@ -133,9 +174,21 @@ it("publishes deduplicated preparation before model completion and query executi
     complete: async (system, messages, tools, signal, update) => {
       if (first) {
         first = false;
-        await update?.({ index: 0, name: "run_", arguments: "" });
-        await update?.({ index: 0, name: "run_sql", arguments: "{" });
-        await update?.({ index: 0, name: "run_sql", arguments: '{"sql":' });
+        await update?.onToolCallUpdate?.({
+          index: 0,
+          name: "run_",
+          arguments: "",
+        });
+        await update?.onToolCallUpdate?.({
+          index: 0,
+          name: "run_sql",
+          arguments: "{",
+        });
+        await update?.onToolCallUpdate?.({
+          index: 0,
+          name: "run_sql",
+          arguments: '{"sql":',
+        });
         expect(events.filter((event) => event.type === "activity")).toEqual([
           {
             type: "activity",
@@ -169,7 +222,7 @@ it("does not execute a prepared tool when the turn is cancelled", async () => {
   deps.warehouse.execute = vi.fn(deps.warehouse.execute);
   deps.model = {
     complete: async (_system, _messages, _tools, signal, update) => {
-      await update?.({
+      await update?.onToolCallUpdate?.({
         index: 0,
         name: "run_metric",
         arguments: JSON.stringify({
@@ -187,7 +240,10 @@ it("does not execute a prepared tool when the turn is cancelled", async () => {
     "interrupted",
   );
   expect(events.find((event) => event.type === "activity")).toMatchObject({
-    activity: { message: "Preparing query for Recorded revenue", status: "preparing" },
+    activity: {
+      message: "Preparing query for Recorded revenue",
+      status: "preparing",
+    },
   });
   expect(deps.warehouse.execute).not.toHaveBeenCalled();
 });
@@ -204,7 +260,10 @@ it("repairs a chart mapping without streaming an invalid chart", async () => {
         if (first) {
           const raw: unknown = JSON.parse(first.arguments);
           const { chartSpecSchema } = await import("@analytics/contracts");
-          first.arguments = JSON.stringify({ ...chartSpecSchema.parse(raw), y: "missing" });
+          first.arguments = JSON.stringify({
+            ...chartSpecSchema.parse(raw),
+            y: "missing",
+          });
         }
       }
       if (requests === 3) {
@@ -220,7 +279,10 @@ it("repairs a chart mapping without streaming an invalid chart", async () => {
           if (first) {
             const { chartSpecSchema } = await import("@analytics/contracts");
             const raw: unknown = JSON.parse(first.arguments);
-            return call("publish_chart", { ...chartSpecSchema.parse(raw), y: "purchases" });
+            return call("publish_chart", {
+              ...chartSpecSchema.parse(raw),
+              y: "purchases",
+            });
           }
         }
       }
@@ -317,8 +379,11 @@ it("executes tool calls sequentially and rejects presentation before later calls
           chartIds: [],
         });
         response.message.toolCalls.push(
-          ...call("run_sql", { sql, purpose: "Device", justification: "Fixture custom SQL" })
-            .message.toolCalls,
+          ...call("run_sql", {
+            sql,
+            purpose: "Device",
+            justification: "Fixture custom SQL",
+          }).message.toolCalls,
         );
         return response;
       }
@@ -350,7 +415,11 @@ it("enforces SQL and chart counts separately from the model budget", async () =>
   queries.deps.warehouse.execute = execute;
   queries.deps.model = {
     complete: async () =>
-      call("run_sql", { sql, purpose: "Repeated query", justification: "Fixture custom SQL" }),
+      call("run_sql", {
+        sql,
+        purpose: "Repeated query",
+        justification: "Fixture custom SQL",
+      }),
   };
   expect(
     (await runAgent(queries.deps, sessionId, turnId, new AbortController().signal, queries.emit))
@@ -431,7 +500,11 @@ it("withholds presentation drafts through validation and publishes only the corr
   deps.model = {
     complete: async (_system, _messages, _tools, _signal, update) => {
       attempts++;
-      await update?.({ index: 1, name: "run_sql", arguments: '{"sql":"secret"}' });
+      await update?.onToolCallUpdate?.({
+        index: 1,
+        name: "run_sql",
+        arguments: '{"sql":"secret"}',
+      });
       const narrative = attempts === 1 ? 'Rejected "draft"\n📊' : 'Repaired "answer"\n📊';
       const response = call("present_analysis", {
         narrative,
@@ -444,7 +517,11 @@ it("withholds presentation drafts through validation and publishes only the corr
         throw new Error("Missing fixture arguments");
       }
       for (let length = 1; length <= args.length; length++) {
-        await update?.({ index: 0, name: "present_analysis", arguments: args.slice(0, length) });
+        await update?.onToolCallUpdate?.({
+          index: 0,
+          name: "present_analysis",
+          arguments: args.slice(0, length),
+        });
       }
       return response;
     },
@@ -468,7 +545,7 @@ it("completes clarification once, retains results, discards drafts and enters fo
   };
   deps.model = {
     complete: async (_system, _messages, _tools, _signal, onDelta) => {
-      await onDelta?.({
+      await onDelta?.onToolCallUpdate?.({
         index: 0,
         name: "present_analysis",
         arguments: '{"narrative":"Draft text"}',
@@ -497,7 +574,11 @@ it("makes both terminal tools available at the final step", async () => {
     complete: async (_system, messages, tools) => {
       step++;
       if (step === 7) {
-        return call("run_sql", { sql, purpose: "Wrong", justification: "Fixture" });
+        return call("run_sql", {
+          sql,
+          purpose: "Wrong",
+          justification: "Fixture",
+        });
       }
       if (step === 8) {
         expect(tools.map((tool) => tool.function.name)).toEqual([
@@ -530,7 +611,10 @@ it("rejects unjustified ad-hoc SQL without spending warehouse budget", async () 
         return call("run_sql", { sql, purpose: "Missing justification" });
       }
       expect(toolOutputs(messages).at(-1)).toContain("justification");
-      return call("request_clarification", { context: "Question", questions: ["Which month?"] });
+      return call("request_clarification", {
+        context: "Question",
+        questions: ["Which month?"],
+      });
     },
   };
   expect((await runAgent(deps, sessionId, turnId, new AbortController().signal, emit)).status).toBe(
@@ -549,10 +633,16 @@ it("rejects unavailable work during final dispatch while allowing clarification 
       if (++step < 8) {
         return call("get_schema", {});
       }
-      const response = call("run_sql", { sql, purpose: "Too late", justification: "Fixture" });
+      const response = call("run_sql", {
+        sql,
+        purpose: "Too late",
+        justification: "Fixture",
+      });
       response.message.toolCalls.push(
-        ...call("request_clarification", { context: "Period needed", questions: ["Which month?"] })
-          .message.toolCalls,
+        ...call("request_clarification", {
+          context: "Period needed",
+          questions: ["Which month?"],
+        }).message.toolCalls,
       );
       return response;
     },

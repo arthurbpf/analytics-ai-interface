@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createParser } from "eventsource-parser";
 import type { ModelMessage, ToolCall } from "./messages.ts";
 import { limits } from "../config.ts";
+import type { ModelUsage } from "./usage.ts";
 
 export interface ToolDefinition {
   type: "function";
@@ -15,6 +16,12 @@ const usageSchema = z.object({
   prompt_tokens: z.number().nonnegative(),
   completion_tokens: z.number().nonnegative(),
   cost: z.number().nonnegative().optional(),
+  prompt_tokens_details: z
+    .object({
+      cached_tokens: z.number().nonnegative().optional(),
+      cache_write_tokens: z.number().nonnegative().optional(),
+    })
+    .optional(),
 });
 const chunkSchema = z.object({
   choices: z
@@ -51,13 +58,13 @@ export interface ToolCallUpdate {
   arguments: string;
 }
 export type OnToolCallUpdate = (update: ToolCallUpdate) => Promise<void>;
+export interface CompletionOptions {
+  sessionId?: string | undefined;
+  onToolCallUpdate?: OnToolCallUpdate;
+}
 export interface ModelResponse {
   message: Extract<ModelMessage, { role: "assistant" }>;
-  usage: {
-    inputTokens: number | null;
-    outputTokens: number | null;
-    cost: number | null;
-  };
+  usage: ModelUsage;
 }
 export interface ModelClient {
   complete(
@@ -65,7 +72,7 @@ export interface ModelClient {
     messages: ModelMessage[],
     tools: ToolDefinition[],
     signal: AbortSignal,
-    onToolCallUpdate?: OnToolCallUpdate,
+    options?: CompletionOptions,
   ): Promise<ModelResponse>;
 }
 /**
@@ -96,7 +103,7 @@ export class OpenRouter implements ModelClient {
    * @param messages - Conversation messages.
    * @param tools - Tool definitions to expose.
    * @param signal - Abort signal for cancellation.
-   * @param onToolCallUpdate - Called as tool-call arguments stream in.
+   * @param options - Session affinity and optional streaming tool-call callback.
    * @returns The assistant message and token usage.
    */
   async complete(
@@ -104,15 +111,29 @@ export class OpenRouter implements ModelClient {
     messages: ModelMessage[],
     tools: ToolDefinition[],
     signal: AbortSignal,
-    onToolCallUpdate?: OnToolCallUpdate,
+    options?: CompletionOptions,
   ): Promise<ModelResponse> {
+    const claude = this.model.startsWith("anthropic/");
     const body = {
       model: this.model,
       stream: true,
       max_tokens: limits.outputTokens,
       provider: { require_parameters: true },
+      ...(options?.sessionId ? { session_id: options.sessionId } : {}),
+      ...(claude ? { cache_control: { type: "ephemeral" } } : {}),
       messages: [
-        { role: "system", content: system },
+        {
+          role: "system",
+          content: claude
+            ? [
+                {
+                  type: "text",
+                  text: system,
+                  cache_control: { type: "ephemeral" },
+                },
+              ]
+            : system,
+        },
         ...messages.map((message) => {
           switch (message.role) {
             case "user":
@@ -233,7 +254,7 @@ export class OpenRouter implements ModelClient {
               call.name += delta.function?.name ?? "";
               call.arguments += delta.function?.arguments ?? "";
               calls.set(delta.index, call);
-              await onToolCallUpdate?.({
+              await options?.onToolCallUpdate?.({
                 index: delta.index,
                 name: call.name,
                 arguments: call.arguments,
@@ -272,6 +293,8 @@ export class OpenRouter implements ModelClient {
           inputTokens: usage?.prompt_tokens ?? null,
           outputTokens: usage?.completion_tokens ?? null,
           cost: usage?.cost ?? null,
+          cachedTokens: usage?.prompt_tokens_details?.cached_tokens ?? null,
+          cacheWriteTokens: usage?.prompt_tokens_details?.cache_write_tokens ?? null,
         },
       };
     } finally {

@@ -5,6 +5,64 @@ import { limits } from "../config.ts";
 afterEach(() => {
   vi.restoreAllMocks();
 });
+it.each(["anthropic/claude-sonnet-4.6", "openai/gpt-5"])(
+  "configures provider-appropriate caching and session affinity for %s",
+  async (model) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      vendorStream([
+        {
+          choices: [{ index: 0, delta: { content: "Done" }, finish_reason: "stop" }],
+          usage: {
+            prompt_tokens: 5000,
+            completion_tokens: 2,
+            cost: 0.001,
+            prompt_tokens_details: {
+              cached_tokens: 4000,
+              cache_write_tokens: 500,
+            },
+          },
+        },
+      ]),
+    );
+    const response = await new OpenRouter("key", model).complete(
+      "Stable instructions",
+      [{ role: "user", content: "Question" }],
+      [],
+      new AbortController().signal,
+      { sessionId: "chat-123" },
+    );
+    const requestBody = fetchMock.mock.calls[0]?.[1]?.body;
+    if (typeof requestBody !== "string") {
+      throw new Error("Expected a JSON request body");
+    }
+    const body: unknown = JSON.parse(requestBody);
+    expect(body).toMatchObject({ session_id: "chat-123" });
+    if (model.startsWith("anthropic/")) {
+      expect(body).toMatchObject({
+        cache_control: { type: "ephemeral" },
+        messages: [
+          {
+            role: "system",
+            content: [
+              {
+                type: "text",
+                text: "Stable instructions",
+                cache_control: { type: "ephemeral" },
+              },
+            ],
+          },
+          { role: "user", content: "Question" },
+        ],
+      });
+    } else {
+      expect(body).not.toHaveProperty("cache_control");
+    }
+    expect(response.usage).toMatchObject({
+      cachedTokens: 4000,
+      cacheWriteTokens: 500,
+    });
+  },
+);
 it("maps protocol exchanges and validates a tool completion and usage", async () => {
   const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
     new Response(
@@ -15,7 +73,11 @@ it("maps protocol exchanges and validates a tool completion and usage", async ()
               index: 0,
               delta: {
                 tool_calls: [
-                  { index: 0, id: "c1", function: { name: "get_schema", arguments: "{}" } },
+                  {
+                    index: 0,
+                    id: "c1",
+                    function: { name: "get_schema", arguments: "{}" },
+                  },
                 ],
               },
               finish_reason: "tool_calls",
@@ -96,7 +158,9 @@ function vendorStream(frames: unknown[], done = true, fragmented = false) {
       controller.close();
     },
   });
-  return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+  return new Response(body, {
+    headers: { "Content-Type": "text/event-stream" },
+  });
 }
 it("assembles fragmented tool calls and UTF-8, awaits updates, and reads final usage once", async () => {
   vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -111,7 +175,10 @@ it("assembles fragmented tool calls and UTF-8, awaits updates, and reads final u
                   {
                     index: 0,
                     id: "a",
-                    function: { name: "present_", arguments: '{"narrative":"Análise ' },
+                    function: {
+                      name: "present_",
+                      arguments: '{"narrative":"Análise ',
+                    },
                   },
                 ],
               },
@@ -123,7 +190,12 @@ it("assembles fragmented tool calls and UTF-8, awaits updates, and reads final u
             {
               index: 0,
               delta: {
-                tool_calls: [{ index: 0, function: { name: "analysis", arguments: '📊"}' } }],
+                tool_calls: [
+                  {
+                    index: 0,
+                    function: { name: "analysis", arguments: '📊"}' },
+                  },
+                ],
               },
               finish_reason: "tool_calls",
             },
@@ -144,16 +216,28 @@ it("assembles fragmented tool calls and UTF-8, awaits updates, and reads final u
     [],
     [],
     new AbortController().signal,
-    async (update) => {
-      await Promise.resolve();
-      updates.push(update.name);
+    {
+      onToolCallUpdate: async (update) => {
+        await Promise.resolve();
+        updates.push(update.name);
+      },
     },
   );
   expect(updates).toEqual(["present_", "present_analysis"]);
   expect(response.message.toolCalls).toEqual([
-    { id: "a", name: "present_analysis", arguments: '{"narrative":"Análise 📊"}' },
+    {
+      id: "a",
+      name: "present_analysis",
+      arguments: '{"narrative":"Análise 📊"}',
+    },
   ]);
-  expect(response.usage).toEqual({ inputTokens: 9, outputTokens: 7, cost: 0.02 });
+  expect(response.usage).toEqual({
+    inputTokens: 9,
+    outputTokens: 7,
+    cost: 0.02,
+    cachedTokens: null,
+    cacheWriteTokens: null,
+  });
 });
 it("keeps interleaved tool calls in index order and unknown usage null", async () => {
   vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -164,8 +248,16 @@ it("keeps interleaved tool calls in index order and unknown usage null", async (
             index: 0,
             delta: {
               tool_calls: [
-                { index: 1, id: "b", function: { name: "get_metrics", arguments: "{}" } },
-                { index: 0, id: "a", function: { name: "get_schema", arguments: "{}" } },
+                {
+                  index: 1,
+                  id: "b",
+                  function: { name: "get_metrics", arguments: "{}" },
+                },
+                {
+                  index: 0,
+                  id: "a",
+                  function: { name: "get_schema", arguments: "{}" },
+                },
               ],
             },
             finish_reason: "tool_calls",
@@ -181,7 +273,13 @@ it("keeps interleaved tool calls in index order and unknown usage null", async (
     new AbortController().signal,
   );
   expect(response.message.toolCalls.map((call) => call.id)).toEqual(["a", "b"]);
-  expect(response.usage).toEqual({ inputTokens: null, outputTokens: null, cost: null });
+  expect(response.usage).toEqual({
+    inputTokens: null,
+    outputTokens: null,
+    cost: null,
+    cachedTokens: null,
+    cacheWriteTokens: null,
+  });
 });
 it.each([
   [vendorStream([], false), "before [DONE]"],
@@ -218,7 +316,11 @@ it("propagates cancellation while awaiting a streaming update", async () => {
             index: 0,
             delta: {
               tool_calls: [
-                { index: 0, id: "a", function: { name: "get_schema", arguments: "{}" } },
+                {
+                  index: 0,
+                  id: "a",
+                  function: { name: "get_schema", arguments: "{}" },
+                },
               ],
             },
             finish_reason: "tool_calls",
@@ -228,9 +330,11 @@ it("propagates cancellation while awaiting a streaming update", async () => {
     ]),
   );
   await expect(
-    new OpenRouter("key", "model").complete("system", [], [], controller.signal, async () => {
-      controller.abort(new Error("Stopped"));
-      controller.signal.throwIfAborted();
+    new OpenRouter("key", "model").complete("system", [], [], controller.signal, {
+      onToolCallUpdate: async () => {
+        controller.abort(new Error("Stopped"));
+        controller.signal.throwIfAborted();
+      },
     }),
   ).rejects.toThrow("Stopped");
 });

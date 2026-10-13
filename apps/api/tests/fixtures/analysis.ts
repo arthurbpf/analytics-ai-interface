@@ -77,7 +77,10 @@ export function memoryStore(): {
       {
         id: randomUUID(),
         turnId,
-        content: { kind: "model", message: { role: "user", content: "Purchases by device" } },
+        content: {
+          kind: "model",
+          message: { role: "user", content: "Purchases by device" },
+        },
       },
     ],
   };
@@ -146,7 +149,12 @@ export function fixtureWarehouse(): Warehouse {
       jobId: result.jobId,
       bytesProcessed: result.bytesProcessed,
       bytesBilled: result.bytesBilled,
-      data: { columns: result.columns, rows: result.rows, complete: true, totalRows: "2" },
+      data: {
+        columns: result.columns,
+        rows: result.rows,
+        complete: true,
+        totalRows: "2",
+      },
     }),
   };
 }
@@ -155,7 +163,7 @@ export function fixtureModel(
 ): ModelClient {
   return {
     complete: async (_system, messages, _tools, signal) => {
-      const last = messages.at(-1);
+      const last = messages.filter((message) => message.role === "tool").at(-1);
       if (last?.role === "tool") {
         const raw: unknown = JSON.parse(last.content);
         const chart = z.object({ chartId: z.uuid(), resultRef: z.uuid() }).safeParse(raw);
@@ -194,6 +202,8 @@ export function toolOutputs(messages: ModelMessage[]) {
 export function fixtureReviewer(): Reviewer {
   return {
     modelName: "fixture-reviewer",
-    model: { complete: async () => call("review_analysis", { approved: true, issues: [] }) },
+    model: {
+      complete: async () => call("review_analysis", { approved: true, issues: [] }),
+    },
   };
 }

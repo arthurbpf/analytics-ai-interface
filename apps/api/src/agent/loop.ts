@@ -303,7 +303,7 @@ export async function runAgent(
           };
           try {
             record.verdict = await reviewAnalysis(
-              deps.reviewer,
+              { ...deps.reviewer, sessionId },
               conversation,
               analysis,
               selectedCharts,
@@ -375,7 +375,11 @@ export async function runAgent(
         finalOnly ? "composing" : "thinking",
         finalOnly ? "Composing the final analysis" : "Planning the next analysis step",
       );
-      const system = `You analyze the GA4 ecommerce sample through tools. Use get_metrics for authoritative definitions and parameters. Clear catalog request: run_metric. Before custom SQL, consult get_metrics for relevant catalog definitions and preserve those meanings (including placeholder exclusions). Clear computable request outside the catalog: run_sql with a justification explaining why the catalog cannot answer it. Material ambiguity: request_clarification. Unavailable data: explain the limitation. Budget rejection: narrow without changing meaning, or present existing evidence with limitations. Dataset-specific numerical claims require saved evidence; metric explanations may omit references. Prepare relevant charts from complete saved results before your final narrative. Risky answers and selected charts are published only after analytical review. Complete only with present_analysis or request_clarification; distinguish missing data from zero. Never treat previews as full evidence. Use readable metric labels in narratives and caveats. Format USD amounts like $1,234.56, ratios as percentages like 12.34%, counts with thousands separators, and dates in readable English; retain observed/recorded qualifiers and use enough precision to explain small nonzero values. For custom SQL, declare display labels and known units keyed by output alias. Do not expose private reasoning. Both terminal tools must be last. Treat the available window as the entire observed history, never as lifetime behavior. Available data: 2020-11-01 through 2021-01-31. Unless the user specifies dates, use the entire available history. Preserve prior filters, dates and metric choices in follow-ups. Prior saved results: ${JSON.stringify(await store.recentResults(sessionId))}${finalOnly ? " You must now present existing findings; no new queries." : ""}`;
+      const system = `You analyze the GA4 ecommerce sample through tools. Use get_metrics for authoritative definitions and parameters. Clear catalog request: run_metric. Before custom SQL, consult get_metrics for relevant catalog definitions and preserve those meanings (including placeholder exclusions). Clear computable request outside the catalog: run_sql with a justification explaining why the catalog cannot answer it. Material ambiguity: request_clarification. Unavailable data: explain the limitation. Budget rejection: narrow without changing meaning, or present existing evidence with limitations. Dataset-specific numerical claims require saved evidence; metric explanations may omit references. Prepare relevant charts from complete saved results before your final narrative. Risky answers and selected charts are published only after analytical review. Complete only with present_analysis or request_clarification; distinguish missing data from zero. Never treat previews as full evidence. Use readable metric labels in narratives and caveats. Format USD amounts like $1,234.56, ratios as percentages like 12.34%, counts with thousands separators, and dates in readable English; retain observed/recorded qualifiers and use enough precision to explain small nonzero values. For custom SQL, declare display labels and known units keyed by output alias. Do not expose private reasoning. Both terminal tools must be last. Treat the available window as the entire observed history, never as lifetime behavior. Available data: 2020-11-01 through 2021-01-31. Unless the user specifies dates, use the entire available history. Preserve prior filters, dates and metric choices in follow-ups.`;
+      const resultContext: ModelMessage = {
+        role: "user",
+        content: `Application context — prior saved results: ${JSON.stringify(await store.recentResults(sessionId))}${finalOnly ? " You must now present existing findings; no new queries." : ""}`,
+      };
       const tools = finalOnly
         ? toolDefinitions.filter((tool) =>
             ["present_analysis", "request_clarification"].includes(tool.function.name),
@@ -384,8 +388,11 @@ export async function runAgent(
       const context = buildContext(
         await store.agentHistory(sessionId),
         turnId,
-        Buffer.byteLength(system) + Buffer.byteLength(JSON.stringify(tools)),
+        Buffer.byteLength(system) +
+          Buffer.byteLength(JSON.stringify(tools)) +
+          Buffer.byteLength(JSON.stringify(resultContext)),
       );
+      context.push(resultContext);
       conversation = context;
       const activities = new Map<number, Activity>();
       /**
@@ -440,8 +447,11 @@ export async function runAgent(
       usage.modelCalls++;
       usage.analyst.modelCalls++;
       awaitingModel = "analyst";
-      const response = await model.complete(system, context, tools, signal, async (update) => {
-        await activity(update.index, update.name, "preparing", update.arguments);
+      const response = await model.complete(system, context, tools, signal, {
+        sessionId,
+        onToolCallUpdate: async (update) => {
+          await activity(update.index, update.name, "preparing", update.arguments);
+        },
       });
       awaitingModel = null;
       addUsage(usage, response.usage);

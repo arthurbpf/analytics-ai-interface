@@ -30,6 +30,7 @@ export type ReviewVerdict = z.infer<typeof verdictSchema>;
 export interface Reviewer {
   model: ModelClient;
   modelName: string;
+  sessionId?: string;
 }
 export interface ReviewRecord {
   candidate: Analysis;
@@ -97,6 +98,12 @@ export async function reviewAnalysis(
   onStart: () => void,
   onUsage: (usage: ModelUsage) => void,
 ): Promise<ReviewVerdict> {
+  const reference = JSON.stringify({
+    definitions: catalog,
+    chartSchema: z.toJSONSchema(chartSpecSchema),
+    schema: schemaGuidance,
+  });
+  const prompt = `${system}\nAuthoritative reference: ${reference}`;
   const messages: ModelMessage[] = [
     {
       role: "user",
@@ -110,18 +117,20 @@ export async function reviewAnalysis(
           requiredCaveats,
         })),
         results,
-        definitions: catalog,
-        chartSchema: z.toJSONSchema(chartSpecSchema),
-        schema: schemaGuidance,
       }),
     },
   ];
-  if (Buffer.byteLength(JSON.stringify({ system, messages, tools })) > limits.contextBytes - 4096) {
+  if (
+    Buffer.byteLength(JSON.stringify({ system: prompt, messages, tools })) >
+    limits.contextBytes - 4096
+  ) {
     throw new ReviewFailure("context_limit");
   }
   signal.throwIfAborted();
   onStart();
-  const response = await reviewer.model.complete(system, messages, tools, signal);
+  const response = await reviewer.model.complete(prompt, messages, tools, signal, {
+    sessionId: reviewer.sessionId,
+  });
   onUsage(response.usage);
   signal.throwIfAborted();
   const call = response.message.toolCalls[0];
