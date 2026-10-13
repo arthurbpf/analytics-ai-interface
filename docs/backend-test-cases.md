@@ -52,7 +52,7 @@ pnpm --filter @analytics/api test:live
 pnpm --filter @analytics/api test:evaluation
 ```
 
-[Live catalog results](live-catalog-results.json) distinguish vocabulary,
+[Live catalog results](evaluations/live-catalog-results.json) distinguish vocabulary,
 independent observed values, catalog observations, adversarial SQL fixtures and
 36 query-shape estimates. Each observation records SQL, date scope, definition,
 rows, job ID and processed/billed bytes; estimates retain identical bound
@@ -65,7 +65,7 @@ and 448 missing item revenues; two purchase events have no item rows.
 
 Independent session-start/conversion and engagement checks use complete recorded
 session membership, not the historical activity-based monthly totals in
-[live-bigquery-results.json](live-bigquery-results.json). Adversarial SQL checks
+[live-bigquery-results.json](evaluations/live-bigquery-results.json). Adversarial SQL checks
 include cross-midnight membership, changing dimensions, timestamp ties, repeated
 purchase events, invalid IDs, checkout before/after purchase, unknown flags,
 single-event duration, absent engagement time, historical/prior versus later
@@ -81,7 +81,7 @@ These estimates establish representative headroom, not that every permitted
 shape will fit; maximumBytesBilled and the remaining turn budget still govern
 execution.
 
-[Model evaluations](live-harness-evaluations.json) record model, correctness
+[Model evaluations](evaluations/live-harness-evaluations.json) record model, correctness
 checks, unnecessary clarification, repair attempts, latency, usage, tool calls,
 answers and saved evidence for seven scenarios plus a follow-up: catalog revenue,
 top-N purchases, an ad-hoc conflict diagnostic, ambiguity, unavailable dates,
@@ -90,7 +90,7 @@ follow-up. All eight recorded cases pass the current rubric. Metric explanations
 and unavailable-data answers correctly omit evidence; dataset numerical findings
 reference saved results. Budget rejection preserves the requested dates/meaning.
 
-The [initial evaluation](live-harness-evaluations-initial.json) is retained to make
+The [initial evaluation](evaluations/live-harness-evaluations-initial.json) is retained to make
 its limitations reviewable: a custom diagnostic omitted known placeholder-ID
 exclusions and reported 16 rather than 15. The prompt/schema guidance was corrected
 to preserve catalog definitions in custom SQL. Two routing checks also rejected
@@ -128,7 +128,7 @@ timeouts, fallback/previous title preservation, separate usage, out-of-order wri
 and startup recovery without replay. HTTP tests verify analytics can finish while its
 title remains pending and duplicates do not create extra title calls.
 
-Live Haiku title verification is recorded in [live-title-results.json](live-title-results.json):
+Live Haiku title verification is recorded in [live-title-results.json](evaluations/live-title-results.json):
 English and Portuguese first-prompt titles and a third-prompt revision were valid,
 short, and reflected the analysis intent. The three requests reported a total cost
 of $0.000414. Live Google login remains unverified because Google OAuth client
@@ -158,9 +158,9 @@ establishes every numerical or causal claim; manual review and repeated/model-di
 runs remain necessary.
 
 Final live checks for `openai/gpt-5.6-luna` are in
-[live baseline](live-harness-evaluations-baseline.json),
-[live reviewed](live-harness-evaluations-reviewed.json), and
-[controlled review](live-review-evaluations.json). Both end-to-end runs completed
+[live baseline](evaluations/live-harness-evaluations-baseline.json),
+[live reviewed](evaluations/live-harness-evaluations-reviewed.json), and
+[controlled review](evaluations/live-review-evaluations.json). Both end-to-end runs completed
 nine cases. Their median turn latencies were 13.899 seconds without review and
 21.712 seconds with review; reported total LLM costs were $0.01417248 and
 $0.03205549, including $0.01768915 of reviewer usage. The final reviewed run needed
@@ -178,9 +178,9 @@ establishes those reviewer judgments, not the analyst's ability to produce the
 scripted repairs or general production accuracy.
 
 Earlier live failures are retained in
-[initial review](live-harness-review-initial.json),
-[chart repair failure](live-harness-review-chart-failure.json), and
-[alias review failure](live-review-evaluations-alias-failure.json). They exposed an
+[initial review](evaluations/live-harness-review-initial.json),
+[chart repair failure](evaluations/live-harness-review-chart-failure.json), and
+[alias review failure](evaluations/live-review-evaluations-alias-failure.json). They exposed an
 unnecessary inline-reference demand, unsupported line-chart series advice, and a
 false SQL-grain objection. The reviewer now receives the authoritative chart schema;
 shared SQL guidance records BigQuery's documented SELECT-alias precedence in GROUP BY.

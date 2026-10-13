@@ -303,7 +303,7 @@ function analystCall(name: string, args: unknown) {
 const records: Record<string, unknown>[] = [];
 afterEach(async () => {
   await writeFile(
-    new URL("../../../../docs/live-review-evaluations.json", import.meta.url),
+    new URL("../../../../docs/evaluations/live-review-evaluations.json", import.meta.url),
     JSON.stringify(
       {
         evaluatedAt: new Date().toISOString(),

@@ -21,7 +21,7 @@ const estimates: { metric: string; sql: string; parameters: unknown; estimatedBy
 const window = "_TABLE_SUFFIX BETWEEN '20201101' AND '20210131'";
 afterEach(async () => {
   await writeFile(
-    new URL("../../../../docs/live-catalog-results.json", import.meta.url),
+    new URL("../../../../docs/evaluations/live-catalog-results.json", import.meta.url),
     JSON.stringify(
       {
         verifiedAt: new Date().toISOString(),

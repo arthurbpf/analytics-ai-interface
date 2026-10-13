@@ -192,7 +192,7 @@ whose name ends in `_test`.
   before scaling to multiple instances.
 - Byte caps default to 2 GiB/catalog query, 1 GiB/ad-hoc query and one 5 GiB/turn
   ledger. Representative live scan estimates are saved in
-  `docs/live-catalog-results.json`; narrowing dates does not reduce full-history
+  `docs/evaluations/live-catalog-results.json`; narrowing dates does not reduce full-history
   session scans. Top-N limits output groups after aggregation, not scanned bytes.
   Model usage is recorded separately; call/context/output limits are not a
   dollar-denominated LLM spending cap.
@@ -205,7 +205,7 @@ whose name ends in `_test`.
   transfer. Legacy unowned chats remain inaccessible. The frontend supports concurrent
   chat streams, identity-scoped preferences, persisted Haiku titles after prompts 1/3,
   and safe Markdown narratives/drafts/caveats. Title usage is separate from analytics.
-  Live Haiku title samples are recorded in `docs/live-title-results.json`; live Google
+  Live Haiku title samples are recorded in `docs/evaluations/live-title-results.json`; live Google
   login still needs configured OAuth client credentials.
 - Implemented: parameterized 18-metric catalog, result provenance and quality
   counts, deterministic top-N scope, persisted chart limitations, and clarification

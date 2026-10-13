@@ -87,7 +87,7 @@ function isPurchaseCount(request: MetricRequest) {
 const records: Record<string, unknown>[] = [];
 afterEach(async () => {
   await writeFile(
-    new URL(`../../../../docs/live-harness-evaluations-${mode}.json`, import.meta.url),
+    new URL(`../../../../docs/evaluations/live-harness-evaluations-${mode}.json`, import.meta.url),
     JSON.stringify(
       {
         evaluatedAt: new Date().toISOString(),
